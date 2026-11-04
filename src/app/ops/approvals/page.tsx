@@ -8,6 +8,7 @@ import { getAllApprovals, getAllEmployees } from "@/lib/data/ops";
 import { formatDate, inr, titleCase } from "@/lib/format";
 import { markApprovalSynced } from "../actions";
 import { NewApprovalForm } from "./new-approval-form";
+import { KekaSyncButton, MarkPaidInKekaButton } from "./keka-buttons";
 
 export const metadata = { title: "Approvals" };
 
@@ -16,7 +17,8 @@ export default function OpsApprovalsPage() {
     <>
       <PageHeader
         title="Approvals"
-        subtitle="Leave and reimbursement requests logged from Keka. Clients decide in their portal; apply each decision in Keka, then mark it synced."
+        subtitle="Leave and reimbursement requests from Keka. Clients decide in their portal; apply each decision in Keka, then mark it synced."
+        actions={<KekaSyncButton />}
       />
       <Suspense fallback={<Skeleton rows={2} />}>
         <Content />
@@ -121,7 +123,20 @@ async function Content() {
                   </td>
                   <td className="td">{details(a)}</td>
                   <td className="td">{formatDate(a.synced_at)}</td>
-                  <td className="td">{a.kind === "reimbursement" ? (a.invoice_id ? <Badge tone="green">Invoiced</Badge> : a.decided_at && a.status === "synced" ? <Badge tone="amber">Next invoice</Badge> : "—") : "—"}</td>
+                  <td className="td">
+                    {a.kind === "reimbursement" ? (
+                      a.invoice_id ? (
+                        <div className="flex flex-col items-start gap-1">
+                          <Badge tone="green">Invoiced</Badge>
+                          {a.keka_reference?.startsWith("keka-claim:") && <MarkPaidInKekaButton approvalId={a.id} />}
+                        </div>
+                      ) : (
+                        <Badge tone="amber">Next invoice</Badge>
+                      )
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                 </tr>
               ))}
             </Table>
@@ -129,7 +144,8 @@ async function Content() {
         </Card>
       </div>
 
-      <Card title="Log a request from Keka">
+      <Card title="Log a request by hand">
+        <p className="mb-3 text-[13px] text-ink-muted">Use this when Keka sync is not set up, or for a one-off. Synced items carry a Keka reference automatically.</p>
         <NewApprovalForm employees={employees.filter((e) => e.status === "active").map((e) => ({ id: e.id, name: `${e.full_name} · ${e.clients?.name ?? ""}` }))} />
       </Card>
     </div>

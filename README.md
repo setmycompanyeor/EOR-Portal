@@ -60,7 +60,9 @@ From `/ops/clients` create the client and enter the admin's email. Supabase send
 
 ## Approvals (leave and reimbursements)
 
-Employees raise leave and expense claims in Keka. Keka's public API cannot accept approval decisions from outside, so the loop is: the request is logged in this app (by ops on `/ops/approvals`, or automatically by the Keka `leaverequestcreated` webhook at `/api/webhooks/keka` once `KEKA_WEBHOOK_SECRET` is set and the employee's `keka_employee_id` is filled), the client approves or rejects on `/app/approvals`, an ops task is created to mirror the decision in Keka, and ops marks it synced. Approved reimbursements are added at cost to the client's next monthly invoice.
+Employees raise leave and expense claims in Keka. Keka's public API cannot accept approval decisions from outside, so the loop is: requests are pulled into this app ("Sync from Keka" on `/ops/approvals`, which also links employees to Keka by email; the `leaverequestcreated` webhook at `/api/webhooks/keka` can push them sooner; the manual form is the fallback), the client approves or rejects on `/app/approvals`, an ops task is created to mirror the decision in Keka, and ops marks it synced. If a request was decided inside Keka directly, the next sync records that. Approved reimbursements are added at cost to the client's next monthly invoice; once settled, "Mark paid in Keka" updates the claim's payment status through the one write Keka's API allows.
+
+Set `KEKA_COMPANY`, `KEKA_CLIENT_ID`, `KEKA_CLIENT_SECRET` and `KEKA_API_KEY` (Keka → Settings → API access, with Employee, Leave and Expense scopes). `KEKA_PAID_STATUS` is the integer Keka expects for a paid claim; it is not documented, so confirm on the first write-back.
 
 Email is not wired yet (notifications are in-portal only). Beyond the webhook above, Keka is not integrated; employees carry a `keka_employee_id` column for payslip and leave sync later.
 
