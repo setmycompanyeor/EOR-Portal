@@ -4,7 +4,7 @@ import { Card, Empty, Kpi, PageHeader, Skeleton, Table } from "@/components/ui";
 import { ActionSelect } from "@/components/action-controls";
 import { requireOps } from "@/lib/auth";
 import { getAllInvoices, getClientsOverview } from "@/lib/data/ops";
-import { formatDate, inr, titleCase } from "@/lib/format";
+import { formatDate, formatMonth, inr, titleCase } from "@/lib/format";
 import { setInvoiceStatus } from "../actions";
 import { ZohoSyncButton } from "./zoho-sync";
 
@@ -46,7 +46,7 @@ async function Content() {
                 <td className="td">
                   <Link href={`/ops/clients/${i.client_id}`}>{i.clients?.name}</Link>
                 </td>
-                <td className="td">{i.kind === "monthly" && i.period_start ? new Date(i.period_start).toLocaleDateString("en-IN", { month: "short", year: "numeric" }) : titleCase(i.kind)}</td>
+                <td className="td">{i.kind === "monthly" && i.period_start ? formatMonth(i.period_start) : titleCase(i.kind)}</td>
                 <td className="td">{formatDate(i.issue_date)}</td>
                 <td className="td">{formatDate(i.due_date)}</td>
                 <td className="td text-right tabular-nums">{inr(i.total)}</td>

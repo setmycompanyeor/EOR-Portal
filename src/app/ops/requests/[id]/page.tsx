@@ -6,9 +6,11 @@ import { StatusBadge } from "@/components/status";
 import { ActionButton } from "@/components/action-controls";
 import { requireOps } from "@/lib/auth";
 import { getRequestForOps } from "@/lib/data/ops";
-import { formatDate, inr, titleCase } from "@/lib/format";
+import { formatDate, inr, titleCase, toDateInput } from "@/lib/format";
 import { setRequestStatus } from "../../actions";
 import { QuoteForm } from "./quote-form";
+
+export const metadata = { title: "Request" };
 
 export default function OpsRequestPage({ params }: PageProps<"/ops/requests/[id]">) {
   return (
@@ -40,7 +42,7 @@ async function Content({ id }: { id: string }) {
         }
         actions={
           <div className="flex items-center gap-2">
-            <StatusBadge status={r.status} />
+            <StatusBadge status={r.status} label={r.status === "quoted" ? "Awaiting client" : r.status === "open" ? "Needs quote" : undefined} />
             {r.status === "approved" && (
               <ActionButton
                 action={async () => {
@@ -92,7 +94,7 @@ async function Content({ id }: { id: string }) {
                     <span className="text-sm font-medium">
                       {inr(q.total)} · {formatDate(q.created_at, { withTime: true })}
                     </span>
-                    <StatusBadge status={q.status} />
+                    <StatusBadge status={q.status} label={q.status === "sent" ? "Sent" : undefined} />
                   </div>
                   <ul className="mt-1 text-[13px] text-ink-muted">
                     {q.quote_lines
@@ -110,7 +112,7 @@ async function Content({ id }: { id: string }) {
           </Card>
         </div>
         <Card title={quotes.some((q) => q.status === "sent") ? "Send a revised quote" : "Send a quote"} action={!canQuote && <Badge tone="gray">Request is {r.status}</Badge>}>
-          {canQuote ? <QuoteForm requestId={r.id} clientId={r.client_id} defaultValidUntil={validUntil.toISOString().slice(0, 10)} /> : <p className="text-sm text-ink-muted">Quoting is closed for this request.</p>}
+          {canQuote ? <QuoteForm requestId={r.id} clientId={r.client_id} defaultValidUntil={toDateInput(validUntil)} /> : <p className="text-sm text-ink-muted">Quoting is closed for this request.</p>}
           {r.status === "approved" && (
             <p className="mt-3 text-[13px] text-ink-muted">
               Approved by the client. <Link href={`/ops/shipments?request=${r.id}&client=${r.client_id}`}>Create the shipment</Link> once ordered.

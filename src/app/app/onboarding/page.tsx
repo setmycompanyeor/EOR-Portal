@@ -3,7 +3,7 @@ import { Badge, Card, PageHeader, Row, Skeleton, Table, Empty, LinkButton } from
 import { StatusBadge } from "@/components/status";
 import { requireClient } from "@/lib/auth";
 import { getClient, getClientDocuments, getClientUsers, getOnboardingSteps } from "@/lib/data/portal";
-import { formatDate, titleCase } from "@/lib/format";
+import { documentKindLabel, formatDate, titleCase } from "@/lib/format";
 import { UploadDocument } from "./upload-document";
 
 export const metadata = { title: "Client onboarding" };
@@ -61,7 +61,7 @@ async function Content() {
                 <div>
                   <div className="text-sm font-medium">{d.name}</div>
                   <div className="text-[13px] text-ink-muted">
-                    {titleCase(d.kind)} · {d.size_bytes ? `${(d.size_bytes / 1024 / 1024).toFixed(1)} MB · ` : ""}uploaded {formatDate(d.created_at)}
+                    {documentKindLabel(d.kind)} · {d.size_bytes ? `${(d.size_bytes / 1024 / 1024).toFixed(1)} MB · ` : ""}uploaded {formatDate(d.created_at)}
                   </div>
                 </div>
                 <StatusBadge status={d.status} />

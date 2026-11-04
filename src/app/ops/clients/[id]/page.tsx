@@ -6,9 +6,11 @@ import { StatusBadge } from "@/components/status";
 import { ActionButton, ActionSelect, OpenFileButton } from "@/components/action-controls";
 import { requireOps } from "@/lib/auth";
 import { getClientDetail } from "@/lib/data/ops";
-import { formatDate, inr, titleCase } from "@/lib/format";
+import { documentKindLabel, formatDate, formatMonth, inr, titleCase, toDateInput } from "@/lib/format";
 import { getOpsDocumentUrl, recomputeDepositRequirement, setClientStatus, setInvoiceStatus, setStepStatus, verifyDocument } from "../../actions";
 import { DepositEntryForm, MonthlyInvoiceForm } from "./forms";
+
+export const metadata = { title: "Client" };
 
 export default function ClientPage({ params }: PageProps<"/ops/clients/[id]">) {
   return (
@@ -28,7 +30,7 @@ async function Content({ id }: { id: string }) {
   const shortfall = Math.max(0, d.balance.required - d.balance.held);
   const unpaid = d.invoices.filter((i) => ["sent", "overdue"].includes(i.status));
   const now = new Date();
-  const today = now.toISOString().slice(0, 10);
+  const today = toDateInput(now);
   const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
   return (
@@ -86,7 +88,7 @@ async function Content({ id }: { id: string }) {
                 <div>
                   <div className="text-sm font-medium">{doc.name}</div>
                   <div className="text-[13px] text-ink-muted">
-                    {titleCase(doc.kind)} · {formatDate(doc.created_at)} {doc.employee_id ? "· employee document" : ""}
+                    {documentKindLabel(doc.kind)} · {formatDate(doc.created_at)} {doc.employee_id ? "· employee document" : ""}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -175,7 +177,7 @@ async function Content({ id }: { id: string }) {
                   <tr key={i.id}>
                     <td className="td font-medium">
                       {i.number}
-                      <div className="text-[12px] text-ink-muted">{i.kind === "monthly" && i.period_start ? new Date(i.period_start).toLocaleDateString("en-IN", { month: "short", year: "numeric" }) : titleCase(i.kind)}</div>
+                      <div className="text-[12px] text-ink-muted">{i.kind === "monthly" && i.period_start ? formatMonth(i.period_start) : titleCase(i.kind)}</div>
                     </td>
                     <td className="td">{formatDate(i.issue_date)}</td>
                     <td className="td">{formatDate(i.due_date)}</td>

@@ -7,11 +7,13 @@ import { ActionButton, ActionSelect, OpenFileButton } from "@/components/action-
 import { requireOps } from "@/lib/auth";
 import { getEmployeeForOps } from "@/lib/data/ops";
 import { getPricing } from "@/lib/data/portal";
-import { formatDate, inr, titleCase } from "@/lib/format";
+import { documentKindLabel, formatDate, inr, titleCase } from "@/lib/format";
 import { estimate } from "@/lib/pricing";
 import { getOpsDocumentUrl, setEmployeeStatus, setEmployeeTask, verifyDocument } from "../../actions";
 
 const statuses = ["requested", "estimate_sent", "estimate_approved", "offer_pending", "contract_sent", "active", "offboarding", "exited", "withdrawn"];
+
+export const metadata = { title: "Employee" };
 
 export default function OpsEmployeePage({ params }: PageProps<"/ops/employees/[id]">) {
   return (
@@ -100,7 +102,7 @@ async function Content({ id }: { id: string }) {
                 <Row key={doc.id}>
                   <div>
                     <div className="text-sm font-medium">{doc.name}</div>
-                    <div className="text-[13px] text-ink-muted">{titleCase(doc.kind.replace("employee_", ""))}</div>
+                    <div className="text-[13px] text-ink-muted">{documentKindLabel(doc.kind)}</div>
                   </div>
                   <div className="flex items-center gap-2">
                     <StatusBadge status={doc.status} />

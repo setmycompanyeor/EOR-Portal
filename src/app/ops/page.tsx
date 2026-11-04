@@ -41,8 +41,7 @@ async function Content({ type }: { type: string }) {
   const overdue = tasks.filter((t) => t.due_date && t.due_date < today);
   const unpaidTotal = (unpaid ?? []).reduce((s, i) => s + Number(i.total), 0);
   const short = clients.filter((c) => c.deposit.required > c.deposit.held);
-  const staffIds = ["unassigned", ...staff.map((s) => s.id)];
-  const staffLabel = (id: string | null) => staff.find((s) => s.id === id)?.full_name ?? "Unassigned";
+  const ownerOptions = [{ value: "unassigned", label: "Unassigned" }, ...staff.map((s) => ({ value: s.id, label: s.id === userId ? `${s.full_name} (you)` : s.full_name }))];
 
   return (
     <>
@@ -71,13 +70,13 @@ async function Content({ type }: { type: string }) {
         {tasks.length === 0 ? (
           <Empty>Queue is clear.</Empty>
         ) : (
-          <Table head={["Task", "Type", "Client", "Owner", "Due", "Status"]}>
+          <Table head={["Task", "Type", "Client", "Owner", "Due", "Status"]} >
             {tasks.map((t) => {
               const due = relativeDue(t.due_date);
               const link = t.link_table === "requests" ? `/ops/requests/${t.link_id}` : t.link_table === "employees" ? `/ops/employees/${t.link_id}` : t.client_id ? `/ops/clients/${t.client_id}` : null;
               return (
                 <tr key={t.id}>
-                  <td className="td">
+                  <td className="td min-w-[260px]">
                     <div className="font-medium">{link ? <Link href={link}>{t.title}</Link> : t.title}</div>
                     {t.detail && <div className="text-[13px] text-ink-muted">{t.detail}</div>}
                   </td>
@@ -89,13 +88,12 @@ async function Content({ type }: { type: string }) {
                     <ActionSelect
                       label={`Owner for ${t.title}`}
                       value={t.owner_id ?? "unassigned"}
-                      options={staffIds}
+                      options={ownerOptions}
                       action={async (v) => {
                         "use server";
                         await assignTask(t.id, v === "unassigned" ? null : v);
                       }}
                     />
-                    <div className="mt-1 text-[12px] text-ink-muted">{t.owner_id === userId ? "You" : staffLabel(t.owner_id)}</div>
                   </td>
                   <td className="td whitespace-nowrap">
                     <Badge tone={due.tone}>{due.label}</Badge>

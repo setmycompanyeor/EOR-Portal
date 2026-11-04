@@ -30,6 +30,17 @@ const day = (offset: number) => {
   d.setDate(d.getDate() + offset);
   return d.toISOString().slice(0, 10);
 };
+/** First / last day of the month `offset` months from now, as YYYY-MM-DD. */
+const monthStart = (offset: number) => {
+  const d = new Date();
+  d.setMonth(d.getMonth() + offset, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+};
+const monthEnd = (offset: number) => {
+  const d = new Date();
+  d.setMonth(d.getMonth() + offset + 1, 0);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 const ts = (offset: number, hour = 10) => {
   const d = new Date();
   d.setDate(d.getDate() + offset);
@@ -40,8 +51,7 @@ const ts = (offset: number, hour = 10) => {
 async function must<T>(p: PromiseLike<{ data: T | null; error: { message: string } | null }>, what: string): Promise<T> {
   const { data, error } = await p;
   if (error) throw new Error(`${what}: ${error.message}`);
-  if (data === null) throw new Error(`${what}: no data returned`);
-  return data;
+  return data as T; // inserts without .select() legitimately return null
 }
 
 async function main() {
@@ -68,7 +78,7 @@ async function main() {
         { name: "Helix Robotics GmbH", legal_name: "Helix Robotics GmbH", country: "Germany", billing_address: "Torstraße 12, 10119 Berlin", status: "active", created_at: ts(-200) },
         { name: "Marigold Health Ltd", legal_name: "Marigold Health Limited", country: "UK", billing_address: "20 Farringdon Rd, London EC1M 3HE", status: "active", created_at: ts(-90) },
         { name: "Cobalt Ventures Pte", legal_name: "Cobalt Ventures Pte. Ltd.", country: "Singapore", status: "onboarding", created_at: ts(-6) },
-      ])
+      ], { defaultToNull: false })
       .select("id, name"),
     "clients",
   );
@@ -112,7 +122,7 @@ async function main() {
       steps.push({ client_id: cid, key, label, sort, status: done ? "done" : i === doneUpTo ? "in_progress" : "pending", completed_at: done ? ts(-110 + i * 4) : null, note: i === doneUpTo ? note : null });
     });
   }
-  await must(sb.from("client_onboarding_steps").insert(steps), "steps");
+  await must(sb.from("client_onboarding_steps").insert(steps, { defaultToNull: false }), "steps");
 
   // Documents ----------------------------------------------------------------
   await must(
@@ -125,7 +135,7 @@ async function main() {
       { client_id: BL, kind: "dpa", name: "DPA-Brightline-signed.pdf", size_bytes: 540_000, status: "verified", verified_by: rohan, verified_at: ts(-107), created_at: ts(-107) },
       { client_id: CB, kind: "incorporation", name: "acra-bizfile-cobalt.pdf", size_bytes: 600_000, status: "uploaded", created_at: ts(-1) },
       { client_id: CB, kind: "signatory_id", name: "nric-director.pdf", size_bytes: 300_000, status: "uploaded", created_at: ts(-1) },
-    ]),
+    ], { defaultToNull: false }),
     "documents",
   );
 
@@ -148,7 +158,7 @@ async function main() {
         { client_id: MG, full_name: "Karthik Rao", job_title: "Frontend Engineer", location_city: "Bengaluru", location_state: "Karnataka", start_date: day(-70), monthly_gross: 120000, status: "active" },
         { client_id: MG, full_name: "Pooja Desai", job_title: "Support Specialist", location_city: "Ahmedabad", location_state: "Gujarat", start_date: day(-45), monthly_gross: 60000, status: "active" },
         { client_id: MG, full_name: "Suresh Pillai", job_title: "DevOps Engineer", location_city: "Thiruvananthapuram", location_state: "Kerala", start_date: day(-40), monthly_gross: 140000, status: "active" },
-      ])
+      ], { defaultToNull: false })
       .select("id, full_name, client_id"),
     "employees",
   );
@@ -177,13 +187,13 @@ async function main() {
       tasks.push({ employee_id: emp[name], key, label, owner, sort, detail, status: i < doneCount ? "done" : "pending", completed_at: i < doneCount ? ts(-8 + i) : null });
     });
   }
-  await must(sb.from("employee_onboarding_tasks").insert(tasks), "employee tasks");
+  await must(sb.from("employee_onboarding_tasks").insert(tasks, { defaultToNull: false }), "employee tasks");
   await must(
     sb.from("documents").insert([
       { client_id: BL, employee_id: emp["Kavya Reddy"], kind: "employee_id", name: "aadhaar-kavya.pdf", size_bytes: 300_000, status: "verified", verified_by: meera, verified_at: ts(-4) },
       { client_id: BL, employee_id: emp["Kavya Reddy"], kind: "employee_pan", name: "pan-kavya.pdf", size_bytes: 200_000, status: "verified", verified_by: meera, verified_at: ts(-4) },
       { client_id: BL, employee_id: emp["Kavya Reddy"], kind: "employee_bank", name: "cancelled-cheque.pdf", size_bytes: 150_000, status: "uploaded" },
-    ]),
+    ], { defaultToNull: false }),
     "employee documents",
   );
 
@@ -199,7 +209,7 @@ async function main() {
       { client_id: HX, entry_date: day(-60), kind: "required_revised", amount: 0, required_amount: 1424880, note: "Revised after Divya Menon joined" },
       { client_id: MG, entry_date: day(-85), kind: "received", amount: 800000, reference: "MGH-2210", note: "Initial deposit received" },
       { client_id: MG, entry_date: day(-40), kind: "required_revised", amount: 0, required_amount: 792210, note: "Revised after Suresh Pillai joined" },
-    ]),
+    ], { defaultToNull: false }),
     "deposits",
   );
 
@@ -208,14 +218,14 @@ async function main() {
     sb
       .from("invoices")
       .insert([
-        { client_id: BL, number: "INV-2026-0013", kind: "monthly", period_start: day(-4).slice(0, 8) + "01", period_end: day(26), issue_date: day(-2), due_date: day(5), subtotal: 477781, gst: 8100, total: 485881, status: "sent" },
-        { client_id: BL, number: "INV-2026-0012", kind: "monthly", period_start: day(-34).slice(0, 8) + "01", period_end: day(-4), issue_date: day(-33), due_date: day(-26), subtotal: 472211, gst: 8100, total: 480311, status: "paid", paid_at: day(-3) },
-        { client_id: BL, number: "INV-2026-0011", kind: "monthly", period_start: day(-64).slice(0, 8) + "01", period_end: day(-34), issue_date: day(-63), due_date: day(-56), subtotal: 330302, gst: 5400, total: 335702, status: "paid", paid_at: day(-57) },
-        { client_id: BL, number: "INV-2026-0009", kind: "monthly", period_start: day(-94).slice(0, 8) + "01", period_end: day(-64), issue_date: day(-93), due_date: day(-86), subtotal: 210789, gst: 2700, total: 213489, status: "paid", paid_at: day(-88) },
+        { client_id: BL, number: "INV-2026-0013", kind: "monthly", period_start: monthStart(0), period_end: monthEnd(0), issue_date: day(-2), due_date: day(5), subtotal: 477781, gst: 8100, total: 485881, status: "sent" },
+        { client_id: BL, number: "INV-2026-0012", kind: "monthly", period_start: monthStart(-1), period_end: monthEnd(-1), issue_date: day(-33), due_date: day(-26), subtotal: 472211, gst: 8100, total: 480311, status: "paid", paid_at: day(-3) },
+        { client_id: BL, number: "INV-2026-0011", kind: "monthly", period_start: monthStart(-2), period_end: monthEnd(-2), issue_date: day(-63), due_date: day(-56), subtotal: 330302, gst: 5400, total: 335702, status: "paid", paid_at: day(-57) },
+        { client_id: BL, number: "INV-2026-0009", kind: "monthly", period_start: monthStart(-3), period_end: monthEnd(-3), issue_date: day(-93), due_date: day(-86), subtotal: 210789, gst: 2700, total: 213489, status: "paid", paid_at: day(-88) },
         { client_id: BL, number: "INV-2026-0007", kind: "one_time", issue_date: day(-54), due_date: day(-47), subtotal: 100500, gst: 1620, total: 102120, status: "paid", paid_at: day(-51) },
-        { client_id: HX, number: "INV-2026-0010", kind: "monthly", period_start: day(-34).slice(0, 8) + "01", period_end: day(-4), issue_date: day(-33), due_date: day(-26), subtotal: 698940, gst: 13500, total: 712440, status: "paid", paid_at: day(-28) },
-        { client_id: MG, number: "INV-2026-0014", kind: "monthly", period_start: day(-34).slice(0, 8) + "01", period_end: day(-4), issue_date: day(-33), due_date: day(-19), subtotal: 388005, gst: 8100, total: 396105, status: "overdue" },
-      ])
+        { client_id: HX, number: "INV-2026-0010", kind: "monthly", period_start: monthStart(-1), period_end: monthEnd(-1), issue_date: day(-33), due_date: day(-26), subtotal: 698940, gst: 13500, total: 712440, status: "paid", paid_at: day(-28) },
+        { client_id: MG, number: "INV-2026-0014", kind: "monthly", period_start: monthStart(-1), period_end: monthEnd(-1), issue_date: day(-33), due_date: day(-19), subtotal: 388005, gst: 8100, total: 396105, status: "overdue" },
+      ], { defaultToNull: false })
       .select("id, number"),
     "invoices",
   );
@@ -229,7 +239,7 @@ async function main() {
       { invoice_id: inv13, employee_id: emp["Rahul Verma"], description: "Rahul Verma: gross salary", amount: 95000, sort: 5 },
       { invoice_id: inv13, employee_id: emp["Rahul Verma"], description: "Rahul Verma: employer PF, gratuity, insurance", amount: 4885, sort: 6 },
       { invoice_id: inv13, description: "Management fee, 3 employees", amount: 45000, sort: 7 },
-    ]),
+    ], { defaultToNull: false }),
     "invoice lines",
   );
 
@@ -243,7 +253,7 @@ async function main() {
         { client_id: BL, employee_id: emp["Arjun Mehta"], category: "equipment", title: '27" 4K monitor', description: "Dell U2723QE monitor shipped to Arjun Mehta, Bengaluru.", status: "in_progress", raised_by: priya, decided_by: daniel, decided_at: ts(-12), created_at: ts(-14) },
         { client_id: BL, category: "benefit", title: "Meal card for all employees", description: "Sodexo meal card, ₹2,200 per month per employee, tax-efficient under the Income-tax Rules.", status: "fulfilled", raised_by: priya, decided_by: daniel, decided_at: ts(-32), created_at: ts(-34) },
         { client_id: MG, employee_id: emp["Tom Adeyemi"], category: "equipment", title: "Laptop for Tom Adeyemi", description: "Windows laptop, 32 GB RAM, ship to Chennai before start.", status: "approved", decided_at: ts(-3), created_at: ts(-5) },
-      ])
+      ], { defaultToNull: false })
       .select("id, title"),
     "requests",
   );
@@ -256,7 +266,7 @@ async function main() {
         { request_id: rq['27" 4K monitor'], total: 53640, status: "approved", created_by: meera, created_at: ts(-13) },
         { request_id: rq["Meal card for all employees"], total: 6900, status: "approved", created_by: meera, created_at: ts(-33) },
         { request_id: rq["Laptop for Tom Adeyemi"], total: 98500, status: "approved", created_by: meera, created_at: ts(-4) },
-      ])
+      ], { defaultToNull: false })
       .select("id, request_id"),
     "quotes",
   );
@@ -273,7 +283,7 @@ async function main() {
       { quote_id: q(rq["Meal card for all employees"]), label: "Card issuance (one-time)", amount: 300, sort: 2 },
       { quote_id: q(rq["Laptop for Tom Adeyemi"]), label: "Dell Latitude 5550, 32 GB / 1 TB", amount: 96000, sort: 1 },
       { quote_id: q(rq["Laptop for Tom Adeyemi"]), label: "Insured courier", amount: 2500, sort: 2 },
-    ]),
+    ], { defaultToNull: false }),
     "quote lines",
   );
 
@@ -286,7 +296,7 @@ async function main() {
         { client_id: BL, tag: "BL-LAP-0002", kind: "laptop", model: 'MacBook Air 13" M4', serial: "C02XK2B2", holder_employee_id: emp["Sneha Iyer"], status: "issued", issued_at: day(-53) },
         { client_id: BL, tag: "BL-LAP-0003", kind: "laptop", model: "Dell Latitude 5450", serial: "DL5450-7781", holder_employee_id: emp["Rahul Verma"], status: "issued", issued_at: day(-37) },
         { client_id: BL, tag: "BL-MON-0007", kind: "monitor", model: 'Dell U2723QE 27"', serial: "CN-0U27-23QE", holder_employee_id: emp["Arjun Mehta"], status: "in_transit" },
-      ])
+      ], { defaultToNull: false })
       .select("id, tag"),
     "assets",
   );
@@ -298,7 +308,7 @@ async function main() {
         { client_id: BL, request_id: rq['27" 4K monitor'], employee_id: emp["Arjun Mehta"], asset_id: asset("BL-MON-0007"), title: 'Dell 27" 4K monitor to Arjun Mehta', courier: "Delhivery", awb: "2214 8873 0019", tracking_url: "https://www.delhivery.com/track/package/221488730019", deliver_to: "Arjun Mehta, Indiranagar, Bengaluru 560038", status: "out_for_delivery", expected_date: day(0), created_at: ts(-6) },
         { client_id: BL, employee_id: emp["Rahul Verma"], asset_id: asset("BL-LAP-0003"), title: "Laptop to Rahul Verma", courier: "Blue Dart", awb: "7781 2234 9900", status: "delivered", expected_date: day(-37), delivered_at: ts(-37, 15), created_at: ts(-42) },
         { client_id: BL, employee_id: emp["Sneha Iyer"], asset_id: asset("BL-LAP-0002"), title: "Laptop to Sneha Iyer", courier: "Delhivery", awb: "2214 1120 0456", status: "delivered", expected_date: day(-53), delivered_at: ts(-53, 12), created_at: ts(-58) },
-      ])
+      ], { defaultToNull: false })
       .select("id, title"),
     "shipments",
   );
@@ -315,7 +325,7 @@ async function main() {
         { shipment_id: s.id, status: "in_transit", occurred_at: ts(-40, 10) },
         { shipment_id: s.id, status: "delivered", occurred_at: ts(-37, 15) },
       ]),
-    ]),
+    ], { defaultToNull: false }),
     "shipment events",
   );
 
@@ -332,7 +342,7 @@ async function main() {
       { client_id: null, type: "compliance", title: "File PF ECR and ESI for last month", detail: "All clients; challans to be uploaded to portals", owner_id: rohan, due_date: day(10), status: "open" },
       { client_id: MG, type: "onboarding", title: "Draft employment contract, Aisha Khan", detail: "Start in 12 days; 6-month probation", owner_id: meera, due_date: day(-1), status: "open", link_table: "employees", link_id: emp["Aisha Khan"] },
       { client_id: MG, type: "invoice", title: "Chase overdue INV-2026-0014", detail: "₹3,96,105 overdue by 19 days", owner_id: meera, due_date: day(0), status: "open" },
-    ]),
+    ], { defaultToNull: false }),
     "ops tasks",
   );
 
@@ -344,7 +354,7 @@ async function main() {
       { client_id: BL, actor_id: rohan, verb: "compliance.filed", summary: "PF ECR and ESI filed for last month; challans available", created_at: ts(-20, 17) },
       { client_id: BL, actor_id: priya, verb: "request.raised", summary: "Raised request: Add parental cover to health insurance", created_at: ts(-6, 14) },
       { client_id: BL, actor_id: meera, verb: "quote.sent", summary: "Quote of ₹1,14,900 sent for Laptop for new joiner", created_at: ts(-2, 11) },
-    ]),
+    ], { defaultToNull: false }),
     "activity",
   );
 

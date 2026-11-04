@@ -3,16 +3,22 @@
 import { useTransition } from "react";
 import { titleCase } from "@/lib/format";
 
+export type SelectOption = string | { value: string; label: string };
+
 /** A select that calls a bound server action with the chosen value. */
-export function ActionSelect({ action, value, options, label }: { action: (value: string) => Promise<void>; value: string; options: string[]; label: string }) {
+export function ActionSelect({ action, value, options, label }: { action: (value: string) => Promise<void>; value: string; options: SelectOption[]; label: string }) {
   const [pending, start] = useTransition();
   return (
-    <select aria-label={label} className="input min-h-[34px] w-auto py-1 text-[13px]" value={value} disabled={pending} onChange={(e) => start(() => action(e.target.value))}>
-      {options.map((o) => (
-        <option key={o} value={o}>
-          {titleCase(o)}
-        </option>
-      ))}
+    <select aria-label={label} className="input min-h-[34px] w-auto max-w-[180px] py-1 text-[13px]" value={value} disabled={pending} onChange={(e) => start(() => action(e.target.value))}>
+      {options.map((o) => {
+        const v = typeof o === "string" ? o : o.value;
+        const l = typeof o === "string" ? titleCase(o) : o.label;
+        return (
+          <option key={v} value={v}>
+            {l}
+          </option>
+        );
+      })}
     </select>
   );
 }

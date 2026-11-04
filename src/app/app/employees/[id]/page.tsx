@@ -4,10 +4,12 @@ import { Badge, Card, Empty, LinkButton, PageHeader, Row, Skeleton, Table } from
 import { StatusBadge } from "@/components/status";
 import { requireClient } from "@/lib/auth";
 import { getEmployee, getPricing } from "@/lib/data/portal";
-import { formatDate, inr, titleCase } from "@/lib/format";
+import { documentKindLabel, formatDate, inr, titleCase } from "@/lib/format";
 import { estimate } from "@/lib/pricing";
 import { UploadDocument } from "@/app/app/onboarding/upload-document";
 import { CompleteTaskButton } from "./complete-task";
+
+export const metadata = { title: "Employee" };
 
 export default function EmployeePage({ params }: PageProps<"/app/employees/[id]">) {
   return (
@@ -107,7 +109,7 @@ async function Content({ id }: { id: string }) {
                 <Row key={d.id}>
                   <div>
                     <div className="text-sm font-medium">{d.name}</div>
-                    <div className="text-[13px] text-ink-muted">{titleCase(d.kind.replace("employee_", ""))}</div>
+                    <div className="text-[13px] text-ink-muted">{documentKindLabel(d.kind)}</div>
                   </div>
                   <StatusBadge status={d.status} />
                 </Row>

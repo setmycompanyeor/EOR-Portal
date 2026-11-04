@@ -215,15 +215,15 @@ export async function createMonthlyInvoice(_prev: ActionState, formData: FormDat
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the form" };
   const { client_id, period } = parsed.data;
   const sb = await createClient();
-  const [{ data: employees }, config, { data: client }, { count }] = await Promise.all([
+  const [y, m] = period.split("-").map(Number);
+  const [{ data: employees }, config, { data: client }, { data: lastInvoice }] = await Promise.all([
     sb.from("employees").select("id, full_name, monthly_gross").eq("client_id", client_id).eq("status", "active"),
     getPricing(client_id),
     sb.from("clients").select("payment_terms_days").eq("id", client_id).single(),
-    sb.from("invoices").select("id", { count: "exact", head: true }),
+    sb.from("invoices").select("number").like("number", `INV-${y}-%`).order("number", { ascending: false }).limit(1).maybeSingle(),
   ]);
   if (!employees || employees.length === 0) return { error: "No active employees to invoice." };
 
-  const [y, m] = period.split("-").map(Number);
   const periodStart = new Date(Date.UTC(y, m - 1, 1));
   const periodEnd = new Date(Date.UTC(y, m, 0));
   const issue = new Date();
@@ -241,7 +241,8 @@ export async function createMonthlyInvoice(_prev: ActionState, formData: FormDat
     gst += r.gst;
   });
 
-  const number = `INV-${y}-${String((count ?? 0) + 1).padStart(4, "0")}`;
+  const lastSeq = Number(lastInvoice?.number?.split("-").pop() ?? 0) || 0;
+  const number = `INV-${y}-${String(lastSeq + 1).padStart(4, "0")}`;
   const { data: invoice, error } = await sb
     .from("invoices")
     .insert({ client_id, number, kind: "monthly", period_start: periodStart.toISOString().slice(0, 10), period_end: periodEnd.toISOString().slice(0, 10), issue_date: issue.toISOString().slice(0, 10), due_date: due.toISOString().slice(0, 10), subtotal, gst, total: subtotal + gst, status: "sent" })
@@ -330,7 +331,7 @@ export async function sendQuote(_prev: ActionState, formData: FormData): Promise
   revalidateClient(d.client_id);
   revalidatePath(`/ops/requests/${d.request_id}`);
   revalidatePath(`/app/requests/${d.request_id}`);
-  return { message: `Quote sent for ₹${total.toLocaleString("en-IN")}. The client has been notified.` };
+  return { message: `Quote sent for ₹${total.toLocaleString("en-IN")}. It is now visible in the client portal.` };
 }
 
 export async function setRequestStatus(requestId: string, clientId: string, status: "in_progress" | "fulfilled" | "cancelled") {

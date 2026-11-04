@@ -7,6 +7,8 @@ import { getRequest, getShipments } from "@/lib/data/portal";
 import { formatDate, inr, titleCase } from "@/lib/format";
 import { DecideQuote } from "./decide-quote";
 
+export const metadata = { title: "Request" };
+
 export default function RequestPage({ params }: PageProps<"/app/requests/[id]">) {
   return (
     <Suspense fallback={<Skeleton rows={2} />}>
