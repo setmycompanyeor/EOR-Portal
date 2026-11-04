@@ -9,7 +9,8 @@ import { getEmployeeForOps } from "@/lib/data/ops";
 import { getPricing } from "@/lib/data/portal";
 import { documentKindLabel, formatDate, inr, titleCase } from "@/lib/format";
 import { estimate } from "@/lib/pricing";
-import { getOpsDocumentUrl, setEmployeeStatus, setEmployeeTask, verifyDocument } from "../../actions";
+import { getOpsDocumentUrl, setEmployeeStatus, setEmployeeTask, uploadEmployeeDocument, verifyDocument } from "../../actions";
+import { UploadDocument } from "@/app/app/onboarding/upload-document";
 
 const statuses = ["requested", "estimate_sent", "estimate_approved", "offer_pending", "contract_sent", "active", "offboarding", "exited", "withdrawn"];
 
@@ -94,7 +95,10 @@ async function Content({ id }: { id: string }) {
             </Table>
           </Card>
 
-          <Card title="Documents">
+          <Card
+            title="Documents"
+            action={<UploadDocument employeeId={employee.id} employeeKinds={[{ value: "offer_letter", label: "Offer letter" }, { value: "employment_contract", label: "Employment contract" }, { value: "other", label: "Other" }]} action={uploadEmployeeDocument} label="Issue document" />}
+          >
             {documents.length === 0 ? (
               <Empty>Nothing uploaded yet.</Empty>
             ) : (

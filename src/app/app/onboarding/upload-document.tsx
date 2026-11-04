@@ -11,15 +11,17 @@ const kinds: { value: string; label: string }[] = [
   { value: "kyc_other", label: "Other KYC document" },
 ];
 
-export function UploadDocument({ employeeId, employeeKinds }: { employeeId?: string; employeeKinds?: { value: string; label: string }[] }) {
+type UploadAction = (prev: ActionState, formData: FormData) => Promise<ActionState>;
+
+export function UploadDocument({ employeeId, employeeKinds, action: upload = uploadDocument, label = "Upload document" }: { employeeId?: string; employeeKinds?: { value: string; label: string }[]; action?: UploadAction; label?: string }) {
   const [open, setOpen] = useState(false);
-  const [state, action, pending] = useActionState<ActionState, FormData>(uploadDocument, {});
+  const [state, action, pending] = useActionState<ActionState, FormData>(upload, {});
   const options = employeeKinds ?? kinds;
 
   if (!open) {
     return (
       <button type="button" className="btn btn-sm" onClick={() => setOpen(true)}>
-        Upload document
+        {label}
       </button>
     );
   }

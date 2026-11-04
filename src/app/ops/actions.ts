@@ -513,3 +513,37 @@ export async function setClientPricing(_prev: ActionState, formData: FormData): 
   revalidatePath("/app/estimator");
   return { message: "Client pricing saved. Estimates, invoices and the deposit requirement now use these rates." };
 }
+
+// ---------------------------------------------------------------------------
+// Documents issued to an employee record (offer letter, signed contract)
+// ---------------------------------------------------------------------------
+const opsDocKinds = ["offer_letter", "employment_contract", "other"] as const;
+
+export async function uploadEmployeeDocument(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { userId } = await requireOps();
+  const employeeId = z.string().uuid().safeParse(formData.get("employee_id"));
+  const kind = z.enum(opsDocKinds).safeParse(formData.get("kind"));
+  const file = formData.get("file");
+  if (!employeeId.success) return { error: "Invalid employee" };
+  if (!kind.success) return { error: "Pick a document type." };
+  if (!(file instanceof File) || file.size === 0) return { error: "Choose a file to upload." };
+  if (file.size > 20 * 1024 * 1024) return { error: "Files must be under 20 MB." };
+
+  const sb = await createClient();
+  const { data: emp } = await sb.from("employees").select("id, full_name, client_id").eq("id", employeeId.data).single();
+  if (!emp) return { error: "Employee not found" };
+  const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+  const path = `${emp.client_id}/employees/${emp.id}/${crypto.randomUUID()}-${safeName}`;
+  const { error: upErr } = await sb.storage.from("documents").upload(path, file, { contentType: file.type || "application/octet-stream" });
+  if (upErr) return { error: `Upload failed: ${upErr.message}` };
+  const { error } = await sb.from("documents").insert({
+    client_id: emp.client_id, employee_id: emp.id, kind: kind.data, name: file.name, storage_path: path, size_bytes: file.size,
+    status: "verified", uploaded_by: userId, verified_by: userId, verified_at: new Date().toISOString(),
+  });
+  if (error) return { error: error.message };
+  await log(emp.client_id, userId, "document.issued", `${file.name} issued to ${emp.full_name}`, { table: "employees", id: emp.id });
+  await notifyClient(emp.client_id, `${file.name} issued to ${emp.full_name}`, undefined, `/app/employees/${emp.id}`);
+  revalidatePath(`/ops/employees/${emp.id}`);
+  revalidatePath(`/app/employees/${emp.id}`);
+  return { message: "Uploaded. The client can download it from the employee's page." };
+}

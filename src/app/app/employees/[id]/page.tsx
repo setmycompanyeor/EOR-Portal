@@ -7,6 +7,8 @@ import { getEmployee, getPricing } from "@/lib/data/portal";
 import { documentKindLabel, formatDate, inr, titleCase } from "@/lib/format";
 import { estimate } from "@/lib/pricing";
 import { UploadDocument } from "@/app/app/onboarding/upload-document";
+import { OpenFileButton } from "@/components/action-controls";
+import { getDocumentUrl } from "@/app/app/actions";
 import { CompleteTaskButton } from "./complete-task";
 
 export const metadata = { title: "Employee" };
@@ -111,7 +113,17 @@ async function Content({ id }: { id: string }) {
                     <div className="text-sm font-medium">{d.name}</div>
                     <div className="text-[13px] text-ink-muted">{documentKindLabel(d.kind)}</div>
                   </div>
-                  <StatusBadge status={d.status} />
+                  <div className="flex items-center gap-2">
+                    <StatusBadge status={d.status} />
+                    <OpenFileButton
+                      action={async () => {
+                        "use server";
+                        return getDocumentUrl(d.id);
+                      }}
+                    >
+                      Open
+                    </OpenFileButton>
+                  </div>
                 </Row>
               ))
             )}
