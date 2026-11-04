@@ -8,6 +8,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPricing } from "@/lib/data/portal";
 import { estimate } from "@/lib/pricing";
+import { notifyOps } from "@/lib/notify";
+import { toDateInput } from "@/lib/format";
 
 export type ActionState = { error?: string; message?: string };
 
@@ -50,6 +52,7 @@ export async function uploadDocument(_prev: ActionState, formData: FormData): Pr
   if (error) return { error: error.message };
 
   await log(clientId, userId, "document.uploaded", `Uploaded ${file.name}`);
+  await notifyOps(clientId, `Document to verify: ${file.name}`, undefined, `/ops/clients/${clientId}`);
   revalidatePath("/app/onboarding");
   if (employeeId.success && employeeId.data) revalidatePath(`/app/employees/${employeeId.data}`);
   return { message: "Uploaded. We will verify it within one business day." };
@@ -132,12 +135,13 @@ export async function requestHire(_prev: ActionState, formData: FormData): Promi
       type: "onboarding",
       title: `Send cost estimate for ${d.full_name}`,
       detail: `${d.job_title} · ${d.location_city} · gross ₹${d.monthly_gross.toLocaleString("en-IN")} · start ${d.start_date}`,
-      due_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+      due_date: toDateInput(new Date(Date.now() + 86400000)),
       link_table: "employees",
       link_id: employee.id,
     }),
   ]);
   await log(clientId, userId, "employee.requested", `Hire requested: ${d.full_name}, ${d.job_title}`, { table: "employees", id: employee.id });
+  await notifyOps(clientId, `New hire request: ${d.full_name}`, `${d.job_title} · ₹${d.monthly_gross.toLocaleString("en-IN")} · start ${d.start_date}`, `/ops/employees/${employee.id}`);
 
   revalidatePath("/app/employees");
   revalidatePath("/app");
@@ -148,7 +152,10 @@ export async function completeClientTask(taskId: string, employeeId: string) {
   const { clientId, userId } = await requireClient();
   const sb = await createClient();
   const { error } = await sb.from("employee_onboarding_tasks").update({ status: "done", completed_at: new Date().toISOString() }).eq("id", taskId).eq("owner", "client");
-  if (!error) await log(clientId, userId, "task.completed", "Completed an onboarding task", { table: "employee_onboarding_tasks", id: taskId });
+  if (!error) {
+    await log(clientId, userId, "task.completed", "Completed an onboarding task", { table: "employee_onboarding_tasks", id: taskId });
+    await notifyOps(clientId, "Client completed an onboarding task", undefined, `/ops/employees/${employeeId}`);
+  }
   revalidatePath(`/app/employees/${employeeId}`);
   revalidatePath("/app");
 }
@@ -184,11 +191,12 @@ export async function raiseRequest(_prev: ActionState, formData: FormData): Prom
     type: "quote",
     title: `Quote: ${d.title}`,
     detail: d.description ?? null,
-    due_date: new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10),
+    due_date: toDateInput(new Date(Date.now() + 2 * 86400000)),
     link_table: "requests",
     link_id: req.id,
   });
   await log(clientId, userId, "request.raised", `Raised request: ${d.title}`, { table: "requests", id: req.id });
+  await notifyOps(clientId, `New request to quote: ${d.title}`, d.description ?? undefined, `/ops/requests/${req.id}`);
 
   revalidatePath("/app/requests");
   redirect(`/app/requests/${req.id}`);
@@ -221,12 +229,13 @@ export async function decideQuote(_prev: ActionState, formData: FormData): Promi
       type: "shipment",
       title: `Fulfil: ${req.title}`,
       detail: "Quote approved by client. Place the order and post tracking.",
-      due_date: new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10),
+      due_date: toDateInput(new Date(Date.now() + 2 * 86400000)),
       link_table: "requests",
       link_id: req.id,
     });
   }
   await log(clientId, userId, `quote.${decision.data}`, `${decision.data === "approved" ? "Approved" : "Rejected"} quote for ${req.title}`, { table: "requests", id: req.id });
+  await notifyOps(clientId, `Quote ${decision.data}: ${req.title}`, undefined, `/ops/requests/${req.id}`);
 
   revalidatePath(`/app/requests/${requestId.data}`);
   revalidatePath("/app/requests");

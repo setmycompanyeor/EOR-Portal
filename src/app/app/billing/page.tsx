@@ -41,7 +41,7 @@ async function Content() {
     <>
       <PageHeader
         title="Deposit & billing"
-        subtitle={client?.zoho_contact_id ? "Invoices and payments sync from Zoho Books" : "Invoices are issued by EOR Hub and appear here when sent"}
+        subtitle={client?.zoho_contact_id ? "Invoices and payments sync from Zoho Books" : "Invoices are issued by SetMyCompany and appear here when sent"}
         actions={shortfall > 0 && <Badge tone="amber">Top-up of {inr(shortfall)} requested</Badge>}
       />
 

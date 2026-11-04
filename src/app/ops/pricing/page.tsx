@@ -4,13 +4,14 @@ import { requireOps } from "@/lib/auth";
 import { getGlobalPricingRow } from "@/lib/data/ops";
 import { DEFAULT_PRICING } from "@/lib/pricing";
 import { PricingForm } from "./pricing-form";
+import { updateGlobalPricing } from "../actions";
 
 export const metadata = { title: "Pricing & rates" };
 
 export default function PricingPage() {
   return (
     <>
-      <PageHeader title="Pricing & rates" subtitle="Defaults used by the public estimator, hire estimates, monthly invoices and deposit requirements. Per-client overrides can be added in the database." />
+      <PageHeader title="Pricing & rates" subtitle="Defaults used by the public estimator, hire estimates, monthly invoices and deposit requirements. Contracted rates for a specific client are set on that client&apos;s page in Clients." />
       <Suspense fallback={<Skeleton rows={1} />}>
         <Content />
       </Suspense>
@@ -35,7 +36,7 @@ async function Content() {
   };
   return (
     <Card className="max-w-3xl">
-      <PricingForm values={values} readOnly={profile.role !== "ops_admin"} />
+      <PricingForm values={values} readOnly={profile.role !== "ops_admin"} action={updateGlobalPricing} />
     </Card>
   );
 }

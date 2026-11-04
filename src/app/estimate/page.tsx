@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { BRAND } from "@/lib/brand";
 import { Estimator } from "@/components/estimator";
 import { getPricing } from "@/lib/data/portal";
 import { saveEstimate } from "./actions";
@@ -12,7 +13,7 @@ export default function EstimatePage() {
       <header className="flex items-center justify-between px-6 py-5 md:px-12">
         <Link href="/" className="flex items-center gap-2.5 text-ink">
           <span aria-hidden="true" className="inline-block h-[30px] w-[30px] rounded-lg bg-brand" />
-          <span className="text-[15px] font-semibold">EOR Hub</span>
+          <span className="text-[15px] font-semibold">{BRAND}</span>
         </Link>
         <Link href="/login" className="btn btn-sm">
           Client sign in

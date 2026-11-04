@@ -5,9 +5,11 @@ import { Badge, Card, Empty, Kpi, PageHeader, Row, Skeleton, Table } from "@/com
 import { StatusBadge } from "@/components/status";
 import { ActionButton, ActionSelect, OpenFileButton } from "@/components/action-controls";
 import { requireOps } from "@/lib/auth";
-import { getClientDetail } from "@/lib/data/ops";
+import { getClientDetail, getClientPricingRow, getGlobalPricingRow } from "@/lib/data/ops";
+import { DEFAULT_PRICING } from "@/lib/pricing";
+import { PricingForm } from "@/app/ops/pricing/pricing-form";
 import { documentKindLabel, formatDate, formatMonth, inr, titleCase, toDateInput } from "@/lib/format";
-import { getOpsDocumentUrl, recomputeDepositRequirement, setClientStatus, setInvoiceStatus, setStepStatus, verifyDocument } from "../../actions";
+import { getOpsDocumentUrl, recomputeDepositRequirement, setClientPricing, setClientStatus, setInvoiceStatus, setStepStatus, verifyDocument } from "../../actions";
 import { DepositEntryForm, MonthlyInvoiceForm } from "./forms";
 
 export const metadata = { title: "Client" };
@@ -24,8 +26,21 @@ export default function ClientPage({ params }: PageProps<"/ops/clients/[id]">) {
 
 async function Content({ id }: { id: string }) {
   await requireOps();
-  const d = await getClientDetail(id);
+  const [d, clientPricing, globalPricing] = await Promise.all([getClientDetail(id), getClientPricingRow(id), getGlobalPricingRow()]);
   if (!d.client) notFound();
+  const pricingRow = clientPricing ?? globalPricing;
+  const pricingValues = {
+    fee_per_employee: Number(pricingRow?.fee_per_employee ?? DEFAULT_PRICING.fee_per_employee),
+    fee_percent: Number(pricingRow?.fee_percent ?? DEFAULT_PRICING.fee_percent),
+    insurance_per_month: Number(pricingRow?.insurance_per_month ?? DEFAULT_PRICING.insurance_per_month),
+    gst_rate: Number(pricingRow?.gst_rate ?? DEFAULT_PRICING.gst_rate),
+    deposit_months: Number(pricingRow?.deposit_months ?? DEFAULT_PRICING.deposit_months),
+    basic_percent: Number(pricingRow?.basic_percent ?? DEFAULT_PRICING.basic_percent),
+    pf_wage_cap: Number(pricingRow?.pf_wage_cap ?? DEFAULT_PRICING.pf_wage_cap),
+    esi_wage_ceiling: Number(pricingRow?.esi_wage_ceiling ?? DEFAULT_PRICING.esi_wage_ceiling),
+    gst_on_full_invoice: Boolean(pricingRow?.gst_on_full_invoice ?? DEFAULT_PRICING.gst_on_full_invoice),
+    pf_on_full_basic: Boolean(pricingRow?.pf_on_full_basic ?? DEFAULT_PRICING.pf_on_full_basic),
+  };
   const c = d.client;
   const shortfall = Math.max(0, d.balance.required - d.balance.held);
   const unpaid = d.invoices.filter((i) => ["sent", "overdue"].includes(i.status));
@@ -57,6 +72,16 @@ async function Content({ id }: { id: string }) {
         <Kpi label="Shortfall" value={inr(shortfall)} tone={shortfall > 0 ? "amber" : undefined} hint={shortfall > 0 ? "Top-up needed" : "Funded"} />
         <Kpi label="Unpaid invoices" value={inr(unpaid.reduce((s, i) => s + Number(i.total), 0))} hint={`${unpaid.length} open`} />
       </div>
+
+      <Card
+        title="Contracted pricing"
+        action={clientPricing ? <Badge tone="green">Client-specific rates since {formatDate(String(clientPricing.effective_from))}</Badge> : <Badge tone="amber">Using global defaults</Badge>}
+      >
+        <p className="mb-3 text-[13px] text-ink-muted">
+          These rates drive this client&apos;s estimator, hire estimates, monthly invoices and deposit requirement. Saving adds a new rate card effective today; earlier invoices are unchanged.
+        </p>
+        <PricingForm values={pricingValues} readOnly={false} action={setClientPricing} clientId={c.id} submitLabel="Save client pricing" compact />
+      </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card title="Onboarding steps">

@@ -41,7 +41,7 @@ async function Content({ id }: { id: string }) {
           </Card>
 
           {current ? (
-            <Card title={current.status === "sent" ? "Quote from EOR Hub" : `Quote (${current.status})`} action={current.valid_until && <Badge tone="gray">Valid until {formatDate(current.valid_until)}</Badge>}>
+            <Card title={current.status === "sent" ? "Quote from SetMyCompany" : `Quote (${current.status})`} action={current.valid_until && <Badge tone="gray">Valid until {formatDate(current.valid_until)}</Badge>}>
               <table className="w-full border-collapse text-sm">
                 <tbody>
                   {current.quote_lines

@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { Home, ClipboardList, Users, Calculator, Wallet, Inbox, Truck, Settings, ListChecks, Building2, FileText, Settings2 } from "lucide-react";
 import { Sidebar, type NavItem } from "@/components/sidebar";
+import { BRAND_SHORT } from "@/lib/brand";
 
 // Icons are React components, so the nav definitions live in a client module
 // (server components can't pass component references to client components).
@@ -40,7 +41,7 @@ export function PortalSidebar() {
     <Suspense fallback={<Fallback />}>
     <Sidebar
       items={clientItems}
-      brand={{ title: "EOR Hub", subtitle: "Client portal" }}
+      brand={{ title: BRAND_SHORT, subtitle: "EOR client portal" }}
       footer={
         <Link href="/ops" className="flex min-h-11 items-center gap-2 px-3 text-navy-text hover:text-white">
           Switch to Ops console
@@ -57,7 +58,7 @@ export function OpsSidebar() {
     <Sidebar
       variant="ops"
       items={opsItems}
-      brand={{ title: "EOR Hub", subtitle: "Ops console · internal" }}
+      brand={{ title: BRAND_SHORT, subtitle: "Ops console · internal" }}
       footer={
         <Link href="/app" className="flex min-h-11 items-center gap-2 px-3 text-ops-text hover:text-white">
           ← Back to client portal

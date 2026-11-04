@@ -248,7 +248,7 @@ async function main() {
     sb
       .from("requests")
       .insert([
-        { client_id: BL, employee_id: emp["Kavya Reddy"], category: "equipment", title: "Laptop for new joiner", description: "Standard engineering laptop for Kavya, to be delivered to her Hyderabad address before her start date. Device stays on the EOR Hub asset register and is recovered on exit.", status: "quoted", raised_by: priya, created_at: ts(-8) },
+        { client_id: BL, employee_id: emp["Kavya Reddy"], category: "equipment", title: "Laptop for new joiner", description: "Standard engineering laptop for Kavya, to be delivered to her Hyderabad address before her start date. Device stays on the SetMyCompany asset register and is recovered on exit.", status: "quoted", raised_by: priya, created_at: ts(-8) },
         { client_id: BL, employee_id: emp["Sneha Iyer"], category: "benefit", title: "Add parental cover to health insurance", description: "Extend the group health policy to cover both parents of Sneha Iyer, sum insured ₹3 lakh, from the 1st of next month.", status: "open", raised_by: priya, created_at: ts(-6) },
         { client_id: BL, employee_id: emp["Arjun Mehta"], category: "equipment", title: '27" 4K monitor', description: "Dell U2723QE monitor shipped to Arjun Mehta, Bengaluru.", status: "in_progress", raised_by: priya, decided_by: daniel, decided_at: ts(-12), created_at: ts(-14) },
         { client_id: BL, category: "benefit", title: "Meal card for all employees", description: "Sodexo meal card, ₹2,200 per month per employee, tax-efficient under the Income-tax Rules.", status: "fulfilled", raised_by: priya, decided_by: daniel, decided_at: ts(-32), created_at: ts(-34) },

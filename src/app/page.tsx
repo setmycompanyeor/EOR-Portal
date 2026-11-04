@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BRAND } from "@/lib/brand";
 import { Calculator, ClipboardList, Inbox, ShieldCheck, Truck, Wallet } from "lucide-react";
 
 const features = [
@@ -16,7 +17,7 @@ export default function Home() {
       <header className="flex items-center justify-between px-6 py-5 md:px-12">
         <div className="flex items-center gap-2.5">
           <span aria-hidden="true" className="inline-block h-[30px] w-[30px] rounded-lg bg-brand" />
-          <span className="text-[15px] font-semibold">EOR Hub</span>
+          <span className="text-[15px] font-semibold">{BRAND}</span>
         </div>
         <nav className="flex items-center gap-3 text-sm">
           <Link href="/estimate" className="btn btn-sm">

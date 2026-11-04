@@ -64,7 +64,7 @@ async function Content({ id }: { id: string }) {
                 <div>
                   <div className="text-sm font-medium">{t.label}</div>
                   <div className="text-[13px] text-ink-muted">
-                    Owner: {t.owner === "ops" ? "EOR Hub" : titleCase(t.owner)}
+                    Owner: {t.owner === "ops" ? "SetMyCompany" : titleCase(t.owner)}
                     {t.status === "done" ? ` · done ${formatDate(t.completed_at)}` : ""}
                   </div>
                 </div>

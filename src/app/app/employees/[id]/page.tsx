@@ -68,12 +68,12 @@ async function Content({ id }: { id: string }) {
                   <div>
                     <div className={`text-sm font-medium ${t.status === "done" ? "" : ""}`}>{t.label}</div>
                     <div className="text-[13px] text-ink-muted">
-                      {t.status === "done" ? `Done ${formatDate(t.completed_at)}` : t.detail ?? `Owner: ${t.owner === "ops" ? "EOR Hub" : titleCase(t.owner)}`}
+                      {t.status === "done" ? `Done ${formatDate(t.completed_at)}` : t.detail ?? `Owner: ${t.owner === "ops" ? "SetMyCompany" : titleCase(t.owner)}`}
                     </div>
                   </div>
                 </div>
                 {t.status !== "done" && t.owner === "client" && canAct && <CompleteTaskButton taskId={t.id} employeeId={employee.id} />}
-                {t.status !== "done" && t.owner !== "client" && <Badge tone="gray">{t.owner === "ops" ? "With EOR Hub" : "With candidate"}</Badge>}
+                {t.status !== "done" && t.owner !== "client" && <Badge tone="gray">{t.owner === "ops" ? "With SetMyCompany" : "With candidate"}</Badge>}
               </Row>
             ))
           )}

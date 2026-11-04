@@ -1,4 +1,4 @@
-# EOR Hub — client portal
+# SetMyCompany EOR — client portal
 
 Employer of Record portal for clients hiring in India: onboarding, cost estimates, deposits and invoices, requests with quote approval, courier tracking and asset register, plus an internal ops console with a cross-client work queue.
 

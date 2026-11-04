@@ -142,6 +142,12 @@ export async function getAllAssets() {
   return (data ?? []) as (Asset & { clients: { name: string } | null; employees: { full_name: string } | null })[];
 }
 
+export async function getClientPricingRow(clientId: string) {
+  const sb = await createClient();
+  const { data } = await sb.from("pricing_configs").select("*").eq("client_id", clientId).order("effective_from", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  return data as Record<string, unknown> | null;
+}
+
 export async function getGlobalPricingRow() {
   const sb = await createClient();
   const { data } = await sb.from("pricing_configs").select("*").is("client_id", null).maybeSingle();

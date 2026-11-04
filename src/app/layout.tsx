@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { BRAND } from "@/lib/brand";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: { default: "EOR Hub", template: "%s · EOR Hub" },
+  title: { default: BRAND, template: `%s · ${BRAND}` },
   description: "Employer of Record client portal: onboarding, cost estimates, deposits, requests and equipment tracking for teams hired in India.",
 };
 

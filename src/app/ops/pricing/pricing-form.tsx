@@ -1,9 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
-import { updateGlobalPricing, type ActionState } from "../actions";
+import type { ActionState } from "../actions";
 
-type Values = {
+export type PricingValues = {
   fee_per_employee: number;
   fee_percent: number;
   insurance_per_month: number;
@@ -16,7 +16,7 @@ type Values = {
   pf_on_full_basic: boolean;
 };
 
-const fields: { name: keyof Values; label: string; hint: string; step?: string }[] = [
+const fields: { name: keyof PricingValues; label: string; hint: string; step?: string }[] = [
   { name: "fee_per_employee", label: "Management fee per employee per month (₹)", hint: "Flat fee billed for every active employee" },
   { name: "fee_percent", label: "Plus % of gross", hint: "0 for a pure flat fee", step: "0.1" },
   { name: "insurance_per_month", label: "Group health insurance per employee per month (₹)", hint: "Your cost for the base cover" },
@@ -27,16 +27,39 @@ const fields: { name: keyof Values; label: string; hint: string; step?: string }
   { name: "esi_wage_ceiling", label: "ESI wage ceiling (₹)", hint: "ESI applies at or below this gross" },
 ];
 
-export function PricingForm({ values, readOnly }: { values: Values; readOnly: boolean }) {
-  const [state, action, pending] = useActionState<ActionState, FormData>(updateGlobalPricing, {});
+export function PricingForm({
+  values,
+  readOnly,
+  action,
+  clientId,
+  submitLabel = "Save pricing",
+  compact,
+}: {
+  values: PricingValues;
+  readOnly: boolean;
+  action: (prev: ActionState, formData: FormData) => Promise<ActionState>;
+  clientId?: string;
+  submitLabel?: string;
+  compact?: boolean;
+}) {
+  const [state, formAction, pending] = useActionState<ActionState, FormData>(action, {});
+  const shown = compact ? fields.slice(0, 5) : fields;
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form action={formAction} className="flex flex-col gap-4">
+      {clientId && <input type="hidden" name="client_id" value={clientId} />}
+      {compact && (
+        <>
+          {fields.slice(5).map((f) => (
+            <input key={f.name} type="hidden" name={f.name} value={String(values[f.name])} />
+          ))}
+        </>
+      )}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {fields.map((f) => (
+        {shown.map((f) => (
           <label key={f.name} className="label">
             {f.label}
             <input className="input" name={f.name} type="number" step={f.step ?? "1"} defaultValue={String(values[f.name])} readOnly={readOnly} />
-            <span className="text-[12px] font-normal text-ink-muted">{f.hint}</span>
+            {!compact && <span className="text-[12px] font-normal text-ink-muted">{f.hint}</span>}
           </label>
         ))}
       </div>
@@ -54,7 +77,7 @@ export function PricingForm({ values, readOnly }: { values: Values; readOnly: bo
       {!readOnly && (
         <div className="flex justify-end">
           <button type="submit" className="btn btn-primary" disabled={pending}>
-            {pending ? "Saving…" : "Save pricing"}
+            {pending ? "Saving…" : submitLabel}
           </button>
         </div>
       )}

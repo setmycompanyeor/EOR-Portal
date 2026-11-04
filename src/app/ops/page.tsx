@@ -47,7 +47,7 @@ async function Content({ type }: { type: string }) {
     <>
       <PageHeader
         title="Work queue"
-        subtitle={`Everything waiting on the EOR Hub team, across all clients · ${new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short", year: "numeric" })}`}
+        subtitle={`Everything waiting on the SetMyCompany team, across all clients · ${new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short", year: "numeric" })}`}
         actions={<NewTaskForm clients={clients.map((c) => ({ id: c.id, name: c.name }))} />}
       />
 

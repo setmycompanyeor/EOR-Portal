@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { BRAND } from "@/lib/brand";
 import { LoginForm } from "./login-form";
 
 export const metadata = { title: "Sign in" };
@@ -11,7 +12,7 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
         <div className="mb-6 flex items-center gap-2.5">
           <span aria-hidden="true" className="inline-block h-[30px] w-[30px] rounded-lg bg-brand" />
           <div>
-            <div className="text-[15px] font-semibold">EOR Hub</div>
+            <div className="text-[15px] font-semibold">{BRAND}</div>
             <div className="text-xs text-ink-muted">Client portal</div>
           </div>
         </div>

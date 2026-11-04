@@ -60,7 +60,7 @@ async function Dashboard() {
         title={`Good day, ${firstName}`}
         subtitle={
           <>
-            {client?.name} · India team via EOR Hub · Payroll month: {month}
+            {client?.name} · India team via SetMyCompany · Payroll month: {month}
           </>
         }
         actions={client && <StatusBadge status={client.status} label={client.status === "active" ? "Account active" : undefined} />}

@@ -8,6 +8,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPricing } from "@/lib/data/portal";
 import { estimate } from "@/lib/pricing";
+import { notifyClient } from "@/lib/notify";
+import { toDateInput } from "@/lib/format";
 
 export type ActionState = { error?: string; message?: string };
 
@@ -108,7 +110,7 @@ export async function createClientAccount(_prev: ActionState, formData: FormData
     redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/auth/callback?next=/app/onboarding`,
   });
   await log(client.id, userId, "client.created", `Client created${invErr ? " (invite failed: " + invErr.message + ")" : `; invited ${d.admin_email}`}`);
-  await sb.from("ops_tasks").insert({ client_id: client.id, type: "onboarding", title: `Verify KYC documents for ${d.name}`, due_date: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10), owner_id: userId });
+  await sb.from("ops_tasks").insert({ client_id: client.id, type: "onboarding", title: `Verify KYC documents for ${d.name}`, due_date: toDateInput(new Date(Date.now() + 3 * 86400000)), owner_id: userId });
 
   revalidatePath("/ops/clients");
   redirect(`/ops/clients/${client.id}`);
@@ -132,6 +134,7 @@ export async function setStepStatus(stepId: string, clientId: string, status: "p
     .select("label")
     .single();
   await log(clientId, userId, "onboarding.step", `${step?.label ?? "Step"}: ${status.replace("_", " ")}`);
+  if (status === "done") await notifyClient(clientId, `Onboarding step complete: ${step?.label ?? "step"}`, undefined, "/app/onboarding");
   revalidateClient(clientId);
 }
 
@@ -145,6 +148,7 @@ export async function verifyDocument(docId: string, clientId: string, status: "v
     .select("name, employee_id")
     .single();
   await log(clientId, userId, `document.${status}`, `${doc?.name ?? "Document"} ${status}`);
+  await notifyClient(clientId, `Document ${status}: ${doc?.name ?? ""}`, status === "rejected" ? "Please upload a corrected copy." : undefined, doc?.employee_id ? `/app/employees/${doc.employee_id}` : "/app/onboarding");
   revalidateClient(clientId);
   if (doc?.employee_id) {
     revalidatePath(`/app/employees/${doc.employee_id}`);
@@ -191,6 +195,8 @@ export async function addDepositEntry(_prev: ActionState, formData: FormData): P
     created_by: userId,
   });
   if (error) return { error: error.message };
+  if (d.kind === "received") await notifyClient(d.client_id, `Deposit received: ₹${(d.amount ?? 0).toLocaleString("en-IN")}`, d.reference ? `Reference ${d.reference}` : undefined, "/app/billing");
+  if (d.kind === "required_revised") await notifyClient(d.client_id, `Deposit requirement updated to ₹${(d.required_amount ?? 0).toLocaleString("en-IN")}`, d.note ?? undefined, "/app/billing");
   await log(d.client_id, userId, "deposit.entry", d.kind === "received" ? `Deposit received ₹${(d.amount ?? 0).toLocaleString("en-IN")}` : d.kind === "required_revised" ? `Deposit requirement revised to ₹${(d.required_amount ?? 0).toLocaleString("en-IN")}` : `Deposit ${d.kind}`);
   revalidateClient(d.client_id);
   return { message: "Entry added." };
@@ -203,7 +209,8 @@ export async function recomputeDepositRequirement(clientId: string) {
   const [{ data: employees }, config] = await Promise.all([sb.from("employees").select("monthly_gross").eq("client_id", clientId).eq("status", "active"), getPricing(clientId)]);
   const monthly = (employees ?? []).reduce((s, e) => s + estimate({ monthlyGross: Number(e.monthly_gross) }, config).perEmployee.monthly, 0);
   const required = monthly * config.deposit_months;
-  await sb.from("deposit_entries").insert({ client_id: clientId, kind: "required_revised", amount: 0, required_amount: required, entry_date: new Date().toISOString().slice(0, 10), note: `Requirement recomputed: ${config.deposit_months} × ₹${monthly.toLocaleString("en-IN")}`, created_by: userId });
+  await sb.from("deposit_entries").insert({ client_id: clientId, kind: "required_revised", amount: 0, required_amount: required, entry_date: toDateInput(new Date()), note: `Requirement recomputed: ${config.deposit_months} × ₹${monthly.toLocaleString("en-IN")}`, created_by: userId });
+  await notifyClient(clientId, `Deposit requirement updated to ₹${required.toLocaleString("en-IN")}`, `${config.deposit_months} months of the current monthly invoice`, "/app/billing");
   await log(clientId, userId, "deposit.required", `Deposit requirement set to ₹${required.toLocaleString("en-IN")}`);
   revalidateClient(clientId);
 }
@@ -245,12 +252,13 @@ export async function createMonthlyInvoice(_prev: ActionState, formData: FormDat
   const number = `INV-${y}-${String(lastSeq + 1).padStart(4, "0")}`;
   const { data: invoice, error } = await sb
     .from("invoices")
-    .insert({ client_id, number, kind: "monthly", period_start: periodStart.toISOString().slice(0, 10), period_end: periodEnd.toISOString().slice(0, 10), issue_date: issue.toISOString().slice(0, 10), due_date: due.toISOString().slice(0, 10), subtotal, gst, total: subtotal + gst, status: "sent" })
+    .insert({ client_id, number, kind: "monthly", period_start: periodStart.toISOString().slice(0, 10), period_end: periodEnd.toISOString().slice(0, 10), issue_date: toDateInput(issue), due_date: toDateInput(due), subtotal, gst, total: subtotal + gst, status: "sent" })
     .select("id")
     .single();
   if (error || !invoice) return { error: error?.message ?? "Could not create invoice" };
   await sb.from("invoice_lines").insert(lines.map((l) => ({ ...l, invoice_id: invoice.id })));
   await log(client_id, userId, "invoice.sent", `Invoice ${number} issued for ₹${(subtotal + gst).toLocaleString("en-IN")}`, { table: "invoices", id: invoice.id });
+  await notifyClient(client_id, `Invoice ${number} issued: ₹${(subtotal + gst).toLocaleString("en-IN")}`, `Due ${due.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`, "/app/billing");
   revalidateClient(client_id);
   revalidatePath("/ops/billing");
   return { message: `${number} created for ₹${(subtotal + gst).toLocaleString("en-IN")}.` };
@@ -259,8 +267,9 @@ export async function createMonthlyInvoice(_prev: ActionState, formData: FormDat
 export async function setInvoiceStatus(invoiceId: string, clientId: string, status: "sent" | "paid" | "overdue" | "void") {
   const { userId } = await requireOps();
   const sb = await createClient();
-  const { data } = await sb.from("invoices").update({ status, paid_at: status === "paid" ? new Date().toISOString().slice(0, 10) : null }).eq("id", invoiceId).select("number").single();
+  const { data } = await sb.from("invoices").update({ status, paid_at: status === "paid" ? toDateInput(new Date()) : null }).eq("id", invoiceId).select("number").single();
   await log(clientId, userId, `invoice.${status}`, `Invoice ${data?.number ?? ""} marked ${status}`);
+  if (status === "paid" || status === "overdue") await notifyClient(clientId, `Invoice ${data?.number ?? ""} ${status === "paid" ? "received, thank you" : "is overdue"}`, undefined, "/app/billing");
   revalidateClient(clientId);
   revalidatePath("/ops/billing");
 }
@@ -273,6 +282,7 @@ export async function setEmployeeStatus(employeeId: string, clientId: string, st
   const sb = await createClient();
   const { data } = await sb.from("employees").update({ status }).eq("id", employeeId).select("full_name").single();
   await log(clientId, userId, "employee.status", `${data?.full_name ?? "Employee"}: ${status.replace(/_/g, " ")}`, { table: "employees", id: employeeId });
+  await notifyClient(clientId, `${data?.full_name ?? "Employee"}: ${status.replace(/_/g, " ")}`, undefined, `/app/employees/${employeeId}`);
   if (status === "active") await recomputeDepositRequirement(clientId);
   revalidateClient(clientId);
   revalidatePath(`/ops/employees/${employeeId}`);
@@ -328,6 +338,7 @@ export async function sendQuote(_prev: ActionState, formData: FormData): Promise
   const { data: req } = await sb.from("requests").update({ status: "quoted" }).eq("id", d.request_id).select("title").single();
   await sb.from("ops_tasks").update({ status: "done", completed_at: new Date().toISOString() }).eq("link_table", "requests").eq("link_id", d.request_id).eq("type", "quote");
   await log(d.client_id, userId, "quote.sent", `Quote of ₹${total.toLocaleString("en-IN")} sent for ${req?.title ?? "request"}`, { table: "requests", id: d.request_id });
+  await notifyClient(d.client_id, `Quote ready: ${req?.title ?? "your request"}`, `₹${total.toLocaleString("en-IN")}, awaiting your approval`, `/app/requests/${d.request_id}`);
   revalidateClient(d.client_id);
   revalidatePath(`/ops/requests/${d.request_id}`);
   revalidatePath(`/app/requests/${d.request_id}`);
@@ -339,6 +350,7 @@ export async function setRequestStatus(requestId: string, clientId: string, stat
   const sb = await createClient();
   const { data } = await sb.from("requests").update({ status }).eq("id", requestId).select("title").single();
   await log(clientId, userId, `request.${status}`, `${data?.title ?? "Request"} ${status.replace("_", " ")}`, { table: "requests", id: requestId });
+  await notifyClient(clientId, `${data?.title ?? "Request"}: ${status.replace("_", " ")}`, undefined, `/app/requests/${requestId}`);
   revalidateClient(clientId);
   revalidatePath(`/ops/requests/${requestId}`);
   revalidatePath(`/app/requests/${requestId}`);
@@ -402,6 +414,7 @@ export async function createShipment(_prev: ActionState, formData: FormData): Pr
   await sb.from("shipment_events").insert({ shipment_id: shipment.id, status: "ordered", note: "Order placed with vendor" });
   if (d.request_id) await sb.from("requests").update({ status: "in_progress" }).eq("id", d.request_id).in("status", ["approved"]);
   await log(d.client_id, userId, "shipment.created", `Shipment created: ${d.title}`, { table: "shipments", id: shipment.id });
+  await notifyClient(d.client_id, `On its way: ${d.title}`, d.courier ? `${d.courier}${d.awb ? ` · AWB ${d.awb}` : ""}` : "Order placed", "/app/tracking");
   revalidateClient(d.client_id);
   revalidatePath("/ops/shipments");
   return { message: "Shipment created." };
@@ -434,13 +447,14 @@ export async function addShipmentEvent(_prev: ActionState, formData: FormData): 
 
   if (shipment?.asset_id) {
     const assetStatus = d.status === "delivered" ? "issued" : d.status === "returned" ? "returned" : ["picked_up", "in_transit", "out_for_delivery"].includes(d.status) ? "in_transit" : null;
-    if (assetStatus) await sb.from("assets").update({ status: assetStatus, issued_at: assetStatus === "issued" ? new Date().toISOString().slice(0, 10) : null }).eq("id", shipment.asset_id);
+    if (assetStatus) await sb.from("assets").update({ status: assetStatus, issued_at: assetStatus === "issued" ? toDateInput(new Date()) : null }).eq("id", shipment.asset_id);
   }
   if (shipment?.request_id && d.status === "delivered") {
     await sb.from("requests").update({ status: "fulfilled" }).eq("id", shipment.request_id);
     await sb.from("ops_tasks").update({ status: "done", completed_at: new Date().toISOString() }).eq("link_table", "requests").eq("link_id", shipment.request_id).eq("type", "shipment");
   }
   await log(d.client_id, userId, "shipment.event", `${shipment?.title ?? "Shipment"}: ${d.status.replace(/_/g, " ")}`, { table: "shipments", id: d.shipment_id });
+  await notifyClient(d.client_id, `${shipment?.title ?? "Shipment"}: ${d.status.replace(/_/g, " ")}`, d.location ?? undefined, "/app/tracking");
   revalidateClient(d.client_id);
   revalidatePath("/ops/shipments");
   return { message: "Updated." };
@@ -478,4 +492,24 @@ export async function updateGlobalPricing(_prev: ActionState, formData: FormData
   revalidatePath("/estimate");
   revalidatePath("/app/estimator");
   return { message: "Pricing saved. New estimates use these rates immediately." };
+}
+
+/** Sets a client's contracted rates. Adds a new effective-from-today row; getPricing() picks the latest. */
+export async function setClientPricing(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { userId } = await requireOps();
+  const clientId = z.string().uuid().safeParse(formData.get("client_id"));
+  if (!clientId.success) return { error: "Invalid client" };
+  const raw = Object.fromEntries(formData) as Record<string, unknown>;
+  raw.gst_on_full_invoice = formData.get("gst_on_full_invoice") === "on";
+  raw.pf_on_full_basic = formData.get("pf_on_full_basic") === "on";
+  const parsed = pricingSchema.safeParse(raw);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the form" };
+  const sb = await createClient();
+  const { error } = await sb.from("pricing_configs").insert({ ...parsed.data, client_id: clientId.data, effective_from: toDateInput(new Date()) });
+  if (error) return { error: error.message };
+  await log(clientId.data, userId, "pricing.client", `Contracted rates set: ₹${parsed.data.fee_per_employee.toLocaleString("en-IN")} fee, ${parsed.data.deposit_months}-month deposit`);
+  await recomputeDepositRequirement(clientId.data);
+  revalidateClient(clientId.data);
+  revalidatePath("/app/estimator");
+  return { message: "Client pricing saved. Estimates, invoices and the deposit requirement now use these rates." };
 }
