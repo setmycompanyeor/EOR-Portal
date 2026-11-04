@@ -1,26 +1,80 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --color-canvas: #f4f5f7;
+  --color-surface: #ffffff;
+  --color-line: #e3e6ec;
+  --color-line-soft: #eef0f3;
+  --color-ink: #16181d;
+  --color-ink-muted: #5b6372;
+  --color-ink-soft: #8e96a6;
+
+  --color-brand: #1e4ed8;
+  --color-brand-strong: #163ba6;
+  --color-brand-soft: #dee7fb;
+  --color-brand-ink: #1a3fa8;
+
+  --color-navy: #0f1a33;
+  --color-navy-hover: #1b2a4d;
+  --color-navy-line: #243457;
+  --color-navy-text: #c7d0e4;
+
+  --color-ops: #7c3aed;
+  --color-ops-navy: #1c1a2e;
+  --color-ops-hover: #2c2945;
+  --color-ops-line: #34304f;
+  --color-ops-text: #cdc9e0;
+
+  --color-green-soft: #dcf5e7;
+  --color-green-ink: #116b3a;
+  --color-amber-soft: #fdefd2;
+  --color-amber-ink: #8a4b00;
+  --color-red-soft: #fde2e1;
+  --color-red-ink: #a32020;
+  --color-gray-soft: #eceef2;
+  --color-gray-ink: #4b5160;
+  --color-purple-soft: #ede6fb;
+  --color-purple-ink: #5b21b6;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-line bg-surface p-5;
+  }
+  .btn {
+    @apply inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-[#d5d9e1] bg-surface px-4 text-sm font-medium text-ink transition hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-primary {
+    @apply border-brand bg-brand text-white hover:bg-brand-strong;
+  }
+  .btn-danger {
+    @apply border-[#f2c4c2] text-red-ink hover:bg-red-soft;
+  }
+  .btn-sm {
+    @apply min-h-[34px] px-3 text-[13px];
+  }
+  .input {
+    @apply min-h-10 w-full rounded-lg border border-[#d5d9e1] bg-surface px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-brand;
+  }
+  .label {
+    @apply flex flex-col gap-1.5 text-[13px] font-medium text-[#3a4150];
+  }
+  .th {
+    @apply border-b border-line px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-ink-muted whitespace-nowrap;
+  }
+  .td {
+    @apply border-b border-line-soft px-3 py-3 align-middle text-sm;
+  }
 }
