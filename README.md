@@ -41,6 +41,12 @@ Stack: Next.js 16 (App Router, Cache Components), React 19, Tailwind v4, Supabas
 - `src/app/app/*` — client portal screens. `src/app/ops/*` — ops console screens.
 - `src/lib/zoho.ts` + `src/app/ops/billing/zoho-actions.ts` — pulls invoices from Zoho Books for clients whose `zoho_contact_id` is set. `src/app/api/webhooks/zoho/route.ts` — receives invoice status changes pushed by a Zoho workflow webhook.
 
+## Deployment
+
+Production runs on Vercel (Hobby plan) at https://eor-portal.vercel.app, deployed automatically from the `main` branch of github.com/setmycompanyeor/EOR-Portal. Environment variables live in the Vercel project settings (the same four as `.env.local`, with `NEXT_PUBLIC_APP_URL` set to the production address). Supabase Auth has the production, preview and localhost `/auth/callback` URLs allow-listed and the Site URL set to production.
+
+To ship a change: commit to `main` and push. Vercel builds and deploys within about a minute; pull requests get preview deployments on their own URLs.
+
 ## Inviting real clients
 
 From `/ops/clients` create the client and enter the admin's email. Supabase sends an invite; the invite link lands on `/auth/callback` and drops the user into onboarding. For invite emails to send in production, configure SMTP in Supabase *Authentication → SMTP settings* and set `NEXT_PUBLIC_APP_URL` to your deployed URL (also add it to Supabase *Authentication → URL configuration → Redirect URLs*).
