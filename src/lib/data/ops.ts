@@ -1,7 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type {
-  Asset, Client, DepositBalance, DepositEntry, Document, Employee, EmployeeTask, Invoice, OnboardingStep, OpsTask, Profile,
+  Approval, Asset, Client, DepositBalance, DepositEntry, Document, Employee, EmployeeTask, Invoice, OnboardingStep, OpsTask, Profile,
   Quote, QuoteLine, Request, Shipment, ShipmentEvent,
 } from "@/lib/types";
 
@@ -146,6 +146,12 @@ export async function getClientPricingRow(clientId: string) {
   const sb = await createClient();
   const { data } = await sb.from("pricing_configs").select("*").eq("client_id", clientId).order("effective_from", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle();
   return data as Record<string, unknown> | null;
+}
+
+export async function getAllApprovals() {
+  const sb = await createClient();
+  const { data } = await sb.from("approvals").select("*, clients(name), employees(full_name)").order("created_at", { ascending: false });
+  return (data ?? []) as (Approval & { clients: { name: string } | null; employees: { full_name: string } | null })[];
 }
 
 export async function getGlobalPricingRow() {

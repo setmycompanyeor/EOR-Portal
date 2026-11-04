@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Badge, Card, Kpi, LinkButton, PageHeader, Row, Skeleton, Table, Empty } from "@/components/ui";
 import { StatusBadge } from "@/components/status";
 import { requireClient } from "@/lib/auth";
-import { getActivity, getClient, getDepositBalance, getEmployees, getEmployeeTasksForClient, getNextInvoice, getRequests } from "@/lib/data/portal";
+import { getActivity, getApprovals, getClient, getDepositBalance, getEmployees, getEmployeeTasksForClient, getNextInvoice, getRequests } from "@/lib/data/portal";
 import { formatDate, inr, relativeDue } from "@/lib/format";
 
 export const metadata = { title: "Dashboard" };
@@ -18,7 +18,7 @@ export default function DashboardPage() {
 
 async function Dashboard() {
   const { clientId, profile } = await requireClient();
-  const [client, employees, deposit, nextInvoice, requests, activity, clientTasks] = await Promise.all([
+  const [client, employees, deposit, nextInvoice, requests, activity, clientTasks, approvals] = await Promise.all([
     getClient(clientId),
     getEmployees(clientId),
     getDepositBalance(clientId),
@@ -26,7 +26,9 @@ async function Dashboard() {
     getRequests(clientId),
     getActivity(clientId),
     getEmployeeTasksForClient(clientId),
+    getApprovals(clientId),
   ]);
+  const pendingApprovals = approvals.filter((a) => a.status === "pending");
 
   const active = employees.filter((e) => e.status === "active");
   const joining = employees.filter((e) => !["active", "exited", "withdrawn", "offboarding"].includes(e.status));
@@ -45,6 +47,9 @@ async function Dashboard() {
       cta: "Review",
       primary: true,
     })),
+    ...(pendingApprovals.length > 0
+      ? [{ title: `${pendingApprovals.length} leave or reimbursement request${pendingApprovals.length === 1 ? "" : "s"} to approve`, detail: pendingApprovals.slice(0, 2).map((a) => `${a.employees?.full_name ?? ""}: ${a.title}`).join(" · "), href: "/app/approvals", cta: "Decide", primary: true }]
+      : []),
     ...(shortfall > 0
       ? [{ title: "Top up security deposit", detail: `Shortfall of ${inr(shortfall)} against the current requirement`, href: "/app/billing", cta: "View" }]
       : []),

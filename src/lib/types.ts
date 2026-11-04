@@ -225,6 +225,34 @@ export type ComplianceFiling = {
   note: string | null;
 };
 
+export type ApprovalKind = "leave" | "reimbursement";
+export type ApprovalStatus = "pending" | "approved" | "rejected" | "synced";
+
+export type Approval = {
+  id: string;
+  client_id: string;
+  employee_id: string;
+  kind: ApprovalKind;
+  title: string;
+  detail: string | null;
+  amount: number | null;
+  from_date: string | null;
+  to_date: string | null;
+  leave_type: string | null;
+  category: string | null;
+  receipt_path: string | null;
+  keka_reference: string | null;
+  status: ApprovalStatus;
+  decided_by: string | null;
+  decided_at: string | null;
+  decision_note: string | null;
+  synced_by: string | null;
+  synced_at: string | null;
+  invoice_id: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
 export type Activity = {
   id: number;
   client_id: string | null;

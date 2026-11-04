@@ -2,7 +2,7 @@
 
 import { Suspense } from "react";
 import Link from "next/link";
-import { Home, ClipboardList, Users, Calculator, Wallet, Inbox, Truck, Settings, ListChecks, Building2, FileText, Settings2 } from "lucide-react";
+import { Home, ClipboardList, Users, Calculator, Wallet, Inbox, Truck, Settings, ListChecks, Building2, FileText, Settings2, CheckSquare } from "lucide-react";
 import { Sidebar, type NavItem } from "@/components/sidebar";
 import { BRAND_SHORT } from "@/lib/brand";
 
@@ -16,6 +16,7 @@ const clientItems: NavItem[] = [
   { href: "/app/estimator", label: "Invoice estimator", icon: Calculator },
   { href: "/app/billing", label: "Deposit & billing", icon: Wallet },
   { href: "/app/requests", label: "Requests", icon: Inbox },
+  { href: "/app/approvals", label: "Approvals", icon: CheckSquare },
   { href: "/app/tracking", label: "Tracking", icon: Truck },
   { href: "/app/settings", label: "Settings", icon: Settings },
 ];
@@ -26,6 +27,7 @@ const opsItems: NavItem[] = [
   { href: "/ops/employees", label: "Employees", icon: Users },
   { href: "/ops/billing", label: "Invoices & deposits", icon: Wallet },
   { href: "/ops/requests", label: "Quotes & requests", icon: FileText },
+  { href: "/ops/approvals", label: "Approvals", icon: CheckSquare },
   { href: "/ops/shipments", label: "Shipments & assets", icon: Truck },
   { href: "/ops/pricing", label: "Pricing & rates", icon: Settings2 },
 ];

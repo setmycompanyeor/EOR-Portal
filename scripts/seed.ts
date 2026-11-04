@@ -329,6 +329,16 @@ async function main() {
     "shipment events",
   );
 
+  // Approvals (from Keka) ----------------------------------------------------
+  await must(
+    sb.from("approvals").insert([
+      { client_id: BL, employee_id: emp["Arjun Mehta"], kind: "reimbursement", title: "Client visit travel, October", detail: "Cab and metro fares for 3 on-site days; receipts attached in Keka.", amount: 4280, category: "Travel", keka_reference: "EXP-2026-118", status: "pending", created_at: ts(-1, 9) },
+      { client_id: BL, employee_id: emp["Sneha Iyer"], kind: "leave", title: "Casual leave, 2 days", detail: "Family function.", from_date: day(9), to_date: day(10), leave_type: "Casual leave", keka_reference: "LR-2026-402", status: "pending", created_at: ts(-1, 14) },
+      { client_id: BL, employee_id: emp["Rahul Verma"], kind: "reimbursement", title: "Home internet, September", amount: 1199, category: "Internet & phone", keka_reference: "EXP-2026-097", status: "synced", decided_by: daniel, decided_at: ts(-20), synced_by: meera, synced_at: ts(-19), created_at: ts(-22) },
+    ], { defaultToNull: false }),
+    "approvals",
+  );
+
   // Ops tasks ----------------------------------------------------------------
   await must(
     sb.from("ops_tasks").insert([

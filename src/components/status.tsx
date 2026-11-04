@@ -57,6 +57,8 @@ const map: Record<string, { tone: Tone; label?: string }> = {
   onboarding: { tone: "blue" },
   suspended: { tone: "red" },
   closed: { tone: "gray" },
+  // approvals
+  synced: { tone: "green", label: "Applied" },
   // documents
   uploaded: { tone: "amber", label: "Awaiting verification" },
   verified: { tone: "green" },

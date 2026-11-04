@@ -291,3 +291,44 @@ export async function inviteUser(_prev: ActionState, formData: FormData): Promis
   revalidatePath("/app/settings");
   return { message: `Invitation sent to ${parsed.data.email}.` };
 }
+
+// ---------------------------------------------------------------------------
+// Approvals (leave / reimbursement raised in payroll)
+// ---------------------------------------------------------------------------
+export async function decideApproval(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { clientId, userId, profile } = await requireClient();
+  if (!canApproveRole(profile.role)) return { error: "Only admins and approvers can decide." };
+  const id = z.string().uuid().safeParse(formData.get("id"));
+  const decision = z.enum(["approved", "rejected"]).safeParse(formData.get("decision"));
+  const note = z.string().trim().max(500).optional().safeParse(formData.get("note") ?? undefined);
+  if (!id.success || !decision.success) return { error: "Invalid request" };
+
+  const sb = await createClient();
+  const { data, error } = await sb
+    .from("approvals")
+    .update({ status: decision.data, decided_by: userId, decided_at: new Date().toISOString(), decision_note: note.success && note.data ? note.data : null })
+    .eq("id", id.data)
+    .eq("client_id", clientId)
+    .eq("status", "pending")
+    .select("id, title, kind, amount, employee_id")
+    .single();
+  if (error || !data) return { error: "This request has already been decided." };
+
+  const admin = createAdminClient();
+  await admin.from("ops_tasks").insert({
+    client_id: clientId,
+    type: "payroll",
+    title: `Apply in Keka: ${data.title} (${decision.data})`,
+    detail: `Client ${decision.data} this ${data.kind}. Mirror the decision in Keka, then mark it synced on the Approvals page.`,
+    due_date: toDateInput(new Date(Date.now() + 86400000)),
+    link_table: "approvals",
+    link_id: data.id,
+  });
+  await log(clientId, userId, `approval.${decision.data}`, `${decision.data === "approved" ? "Approved" : "Rejected"} ${data.kind}: ${data.title}`, { table: "approvals", id: data.id });
+  await notifyOps(clientId, `${data.kind === "leave" ? "Leave" : "Reimbursement"} ${decision.data}: ${data.title}`, "Apply the decision in Keka and mark it synced.", "/ops/approvals");
+
+  revalidatePath("/app/approvals");
+  revalidatePath("/app");
+  revalidatePath("/ops/approvals");
+  return { message: decision.data === "approved" ? "Approved. SetMyCompany will apply it in payroll." : "Rejected." };
+}

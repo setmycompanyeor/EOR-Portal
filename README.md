@@ -58,7 +58,11 @@ From `/ops/clients` create the client and enter the admin's email. Supabase send
 3. Set each client's `zoho_contact_id` (the Zoho customer id) in the `clients` table.
 4. `/ops/billing → Sync from Zoho Books` pulls invoices. For push updates, create a Zoho workflow rule on invoices that calls `POST {APP_URL}/api/webhooks/zoho` with header `x-webhook-secret: {ZOHO_WEBHOOK_SECRET}` and a JSON body containing `invoice_id`, `status`, `total`, `due_date`, `last_payment_date`.
 
-Keka is not wired yet; employees carry a `keka_employee_id` column for when payslip and leave sync is added.
+## Approvals (leave and reimbursements)
+
+Employees raise leave and expense claims in Keka. Keka's public API cannot accept approval decisions from outside, so the loop is: the request is logged in this app (by ops on `/ops/approvals`, or automatically by the Keka `leaverequestcreated` webhook at `/api/webhooks/keka` once `KEKA_WEBHOOK_SECRET` is set and the employee's `keka_employee_id` is filled), the client approves or rejects on `/app/approvals`, an ops task is created to mirror the decision in Keka, and ops marks it synced. Approved reimbursements are added at cost to the client's next monthly invoice.
+
+Email is not wired yet (notifications are in-portal only). Beyond the webhook above, Keka is not integrated; employees carry a `keka_employee_id` column for payslip and leave sync later.
 
 ## Scripts
 

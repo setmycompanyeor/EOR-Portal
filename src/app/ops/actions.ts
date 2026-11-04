@@ -249,6 +249,21 @@ export async function createMonthlyInvoice(_prev: ActionState, formData: FormDat
   });
 
   const lastSeq = Number(lastInvoice?.number?.split("-").pop() ?? 0) || 0;
+  // Approved reimbursements not yet billed are passed through at cost (no GST).
+  const { data: reimbursements } = await sb
+    .from("approvals")
+    .select("id, title, amount, employees(full_name)")
+    .eq("client_id", client_id)
+    .eq("kind", "reimbursement")
+    .in("status", ["approved", "synced"])
+    .is("invoice_id", null);
+  for (const r of (reimbursements ?? []) as unknown as { id: string; title: string; amount: number | null; employees: { full_name: string } | null }[]) {
+    const amt = Number(r.amount ?? 0);
+    if (amt <= 0) continue;
+    lines.push({ description: `Reimbursement, ${r.employees?.full_name ?? "employee"}: ${r.title}`, amount: amt, employee_id: "", sort: 1000 + lines.length });
+    subtotal += amt;
+  }
+
   const number = `INV-${y}-${String(lastSeq + 1).padStart(4, "0")}`;
   const { data: invoice, error } = await sb
     .from("invoices")
@@ -256,7 +271,10 @@ export async function createMonthlyInvoice(_prev: ActionState, formData: FormDat
     .select("id")
     .single();
   if (error || !invoice) return { error: error?.message ?? "Could not create invoice" };
-  await sb.from("invoice_lines").insert(lines.map((l) => ({ ...l, invoice_id: invoice.id })));
+  await sb.from("invoice_lines").insert(lines.map((l) => ({ ...l, employee_id: l.employee_id || null, invoice_id: invoice.id })));
+  if (reimbursements && reimbursements.length > 0) {
+    await sb.from("approvals").update({ invoice_id: invoice.id }).in("id", reimbursements.map((r) => r.id));
+  }
   await log(client_id, userId, "invoice.sent", `Invoice ${number} issued for ₹${(subtotal + gst).toLocaleString("en-IN")}`, { table: "invoices", id: invoice.id });
   await notifyClient(client_id, `Invoice ${number} issued: ₹${(subtotal + gst).toLocaleString("en-IN")}`, `Due ${due.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`, "/app/billing");
   revalidateClient(client_id);
@@ -546,4 +564,78 @@ export async function uploadEmployeeDocument(_prev: ActionState, formData: FormD
   revalidatePath(`/ops/employees/${emp.id}`);
   revalidatePath(`/app/employees/${emp.id}`);
   return { message: "Uploaded. The client can download it from the employee's page." };
+}
+
+// ---------------------------------------------------------------------------
+// Approvals: logged from Keka, decided by the client, applied in Keka by ops
+// ---------------------------------------------------------------------------
+const approvalSchema = z.object({
+  employee_id: z.string().uuid(),
+  kind: z.enum(["leave", "reimbursement"]),
+  title: z.string().trim().min(3, "Give it a title"),
+  detail: z.string().trim().max(1000).optional(),
+  amount: z.coerce.number().min(0).optional(),
+  category: z.string().trim().optional(),
+  from_date: z.string().optional(),
+  to_date: z.string().optional(),
+  leave_type: z.string().trim().optional(),
+  keka_reference: z.string().trim().optional(),
+});
+
+export async function createApproval(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { userId } = await requireOps();
+  const parsed = approvalSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the form" };
+  const d = parsed.data;
+  if (d.kind === "reimbursement" && !(d.amount && d.amount > 0)) return { error: "Enter the reimbursement amount." };
+  if (d.kind === "leave" && (!d.from_date || !d.to_date)) return { error: "Enter the leave dates." };
+
+  const sb = await createClient();
+  const { data: emp } = await sb.from("employees").select("id, full_name, client_id").eq("id", d.employee_id).single();
+  if (!emp) return { error: "Employee not found" };
+  const { data: row, error } = await sb
+    .from("approvals")
+    .insert({
+      client_id: emp.client_id,
+      employee_id: emp.id,
+      kind: d.kind,
+      title: d.title,
+      detail: d.detail || null,
+      amount: d.kind === "reimbursement" ? d.amount : null,
+      category: d.kind === "reimbursement" ? d.category || null : null,
+      from_date: d.kind === "leave" ? d.from_date : null,
+      to_date: d.kind === "leave" ? d.to_date : null,
+      leave_type: d.kind === "leave" ? d.leave_type || null : null,
+      keka_reference: d.keka_reference || null,
+      created_by: userId,
+    })
+    .select("id")
+    .single();
+  if (error || !row) return { error: error?.message ?? "Could not save" };
+  await log(emp.client_id, userId, "approval.raised", `${d.kind === "leave" ? "Leave" : "Reimbursement"} request for ${emp.full_name}: ${d.title}`, { table: "approvals", id: row.id });
+  await notifyClient(emp.client_id, `${d.kind === "leave" ? "Leave" : "Reimbursement"} request: ${emp.full_name}`, d.kind === "reimbursement" ? `₹${(d.amount ?? 0).toLocaleString("en-IN")} · ${d.title}` : d.title, "/app/approvals");
+  revalidatePath("/ops/approvals");
+  revalidatePath("/app/approvals");
+  revalidatePath("/app");
+  return { message: "Sent to the client for approval." };
+}
+
+export async function markApprovalSynced(id: string) {
+  const { userId } = await requireOps();
+  const sb = await createClient();
+  const { data } = await sb
+    .from("approvals")
+    .update({ status: "synced", synced_by: userId, synced_at: new Date().toISOString() })
+    .eq("id", id)
+    .in("status", ["approved", "rejected"])
+    .select("client_id, title, kind, status")
+    .single();
+  if (data) {
+    await sb.from("ops_tasks").update({ status: "done", completed_at: new Date().toISOString() }).eq("link_table", "approvals").eq("link_id", id);
+    await log(data.client_id, userId, "approval.synced", `${data.title} applied in Keka`, { table: "approvals", id });
+    await notifyClient(data.client_id, `${data.kind === "leave" ? "Leave" : "Reimbursement"} applied in payroll: ${data.title}`, data.kind === "reimbursement" ? "It will appear on your next invoice." : undefined, "/app/approvals");
+  }
+  revalidatePath("/ops/approvals");
+  revalidatePath("/ops");
+  revalidatePath("/app/approvals");
 }

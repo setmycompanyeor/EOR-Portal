@@ -1,7 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type {
-  Activity, Asset, Client, DepositBalance, DepositEntry, Document, Employee, EmployeeTask, Invoice, InvoiceLine,
+  Activity, Approval, Asset, Client, DepositBalance, DepositEntry, Document, Employee, EmployeeTask, Invoice, InvoiceLine,
   OnboardingStep, Profile, Quote, QuoteLine, Request, Shipment, ShipmentEvent,
 } from "@/lib/types";
 import { DEFAULT_PRICING, type PricingConfig } from "@/lib/pricing";
@@ -151,6 +151,14 @@ export async function getAssets(clientId: string) {
   const sb = await createClient();
   const { data } = await sb.from("assets").select("*, employees:holder_employee_id(full_name)").eq("client_id", clientId).order("tag");
   return (data ?? []) as (Asset & { employees: { full_name: string } | null })[];
+}
+
+export type ApprovalRow = Approval & { employees: { full_name: string } | null };
+
+export async function getApprovals(clientId: string) {
+  const sb = await createClient();
+  const { data } = await sb.from("approvals").select("*, employees(full_name)").eq("client_id", clientId).order("created_at", { ascending: false });
+  return (data ?? []) as ApprovalRow[];
 }
 
 export async function getActivity(clientId: string, limit = 8) {
