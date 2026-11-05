@@ -42,8 +42,8 @@ export function MonthlyInvoiceForm({ clientId, period }: { clientId: string; per
         Period
         <input className="input" name="period" type="month" defaultValue={period} required />
       </label>
-      <button type="submit" className="btn btn-primary" disabled={pending}>
-        {pending ? "Creating…" : "Create monthly invoice"}
+      <button type="submit" className="btn" disabled={pending}>
+        {pending ? "Calculating…" : "Prepare draft from payroll"}
       </button>
       <p aria-live="polite" className={`w-full min-h-4 text-[12px] ${state.error ? "text-red-ink" : "text-green-ink"}`}>
         {state.error ?? state.message}

@@ -6,6 +6,8 @@ import { getClient, getDepositBalance, getDepositEntries, getEmployees, getInvoi
 import { formatDate, formatMonth, inr, relativeDue, titleCase } from "@/lib/format";
 import { estimate } from "@/lib/pricing";
 import { BillingTabs } from "./tabs";
+import { OpenFileButton } from "@/components/action-controls";
+import { getInvoicePdfUrl } from "@/app/app/actions";
 
 export const metadata = { title: "Deposit & billing" };
 
@@ -97,7 +99,7 @@ async function Content() {
             invoices.length === 0 ? (
               <Empty>No invoices yet.</Empty>
             ) : (
-              <Table head={["Invoice", "Period", "Issued", "Due", "Amount", "Status"]}>
+              <Table head={["Invoice", "Period", "Issued", "Due", "Amount", "Status", ""]}>
                 {invoices.map((i) => (
                   <tr key={i.id}>
                     <td className="td font-medium">{i.number}</td>
@@ -107,6 +109,18 @@ async function Content() {
                     <td className="td text-right tabular-nums">{inr(i.total)}</td>
                     <td className="td">
                       <StatusBadge status={i.status} label={i.status === "paid" ? `Paid ${formatDate(i.paid_at)}` : i.status === "sent" ? relativeDue(i.due_date).label : undefined} />
+                    </td>
+                    <td className="td">
+                      {i.pdf_path && (
+                        <OpenFileButton
+                          action={async () => {
+                            "use server";
+                            return getInvoicePdfUrl(i.id);
+                          }}
+                        >
+                          PDF
+                        </OpenFileButton>
+                      )}
                     </td>
                   </tr>
                 ))}

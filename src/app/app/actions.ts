@@ -332,3 +332,12 @@ export async function decideApproval(_prev: ActionState, formData: FormData): Pr
   revalidatePath("/ops/approvals");
   return { message: decision.data === "approved" ? "Approved. SetMyCompany will apply it in payroll." : "Rejected." };
 }
+
+export async function getInvoicePdfUrl(invoiceId: string): Promise<string | null> {
+  const { clientId } = await requireClient();
+  const sb = await createClient();
+  const { data } = await sb.from("invoices").select("pdf_path").eq("client_id", clientId).eq("id", invoiceId).single();
+  if (!data?.pdf_path) return null;
+  const { data: signed } = await sb.storage.from("documents").createSignedUrl(data.pdf_path, 60 * 10);
+  return signed?.signedUrl ?? null;
+}

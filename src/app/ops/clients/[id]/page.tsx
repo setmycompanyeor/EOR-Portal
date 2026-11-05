@@ -9,8 +9,9 @@ import { getClientDetail, getClientPricingRow, getGlobalPricingRow } from "@/lib
 import { DEFAULT_PRICING } from "@/lib/pricing";
 import { PricingForm } from "@/app/ops/pricing/pricing-form";
 import { documentKindLabel, formatDate, formatMonth, inr, titleCase, toDateInput } from "@/lib/format";
-import { getOpsDocumentUrl, recomputeDepositRequirement, setClientPricing, setClientStatus, setInvoiceStatus, setStepStatus, verifyDocument } from "../../actions";
+import { getInvoicePdfUrlOps, getOpsDocumentUrl, recomputeDepositRequirement, setClientPricing, setClientStatus, setInvoiceStatus, setStepStatus, verifyDocument } from "../../actions";
 import { DepositEntryForm, MonthlyInvoiceForm } from "./forms";
+import { RecordInvoiceForm } from "./record-invoice-form";
 
 export const metadata = { title: "Client" };
 
@@ -192,7 +193,17 @@ async function Content({ id }: { id: string }) {
         </Card>
 
         <Card title="Invoices">
+          <p className="mb-2 text-[13px] text-ink-muted">Invoices are raised in Zoho Books. Prepare a draft here to get the payroll lines and total, raise it in Zoho, then record the Zoho invoice with its PDF.</p>
           <MonthlyInvoiceForm clientId={c.id} period={period} />
+          <div className="mt-2">
+            <RecordInvoiceForm
+              clientId={c.id}
+              today={today}
+              drafts={d.invoices
+                .filter((i) => i.status === "draft")
+                .map((i) => ({ id: i.id, label: `${i.number} · ${i.period_start ? formatMonth(i.period_start) : titleCase(i.kind)} · ₹${Number(i.total).toLocaleString("en-IN")}`, subtotal: Number(i.subtotal), gst: Number(i.gst), total: Number(i.total), period_start: i.period_start, period_end: i.period_end }))}
+            />
+          </div>
           <div className="mt-3">
             {d.invoices.length === 0 ? (
               <Empty>No invoices yet.</Empty>
@@ -202,7 +213,22 @@ async function Content({ id }: { id: string }) {
                   <tr key={i.id}>
                     <td className="td font-medium">
                       {i.number}
-                      <div className="text-[12px] text-ink-muted">{i.kind === "monthly" && i.period_start ? formatMonth(i.period_start) : titleCase(i.kind)}</div>
+                      <div className="text-[12px] text-ink-muted">
+                        {i.kind === "monthly" && i.period_start ? formatMonth(i.period_start) : titleCase(i.kind)}
+                        {i.pdf_path && (
+                          <>
+                            {" · "}
+                            <OpenFileButton
+                              action={async () => {
+                                "use server";
+                                return getInvoicePdfUrlOps(i.id);
+                              }}
+                            >
+                              PDF
+                            </OpenFileButton>
+                          </>
+                        )}
+                      </div>
                     </td>
                     <td className="td">{formatDate(i.issue_date)}</td>
                     <td className="td">{formatDate(i.due_date)}</td>

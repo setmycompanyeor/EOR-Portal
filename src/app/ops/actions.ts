@@ -215,7 +215,8 @@ export async function recomputeDepositRequirement(clientId: string) {
   revalidateClient(clientId);
 }
 
-/** Creates the monthly invoice for a period from active employees and the client's pricing. */
+/** Prepares a DRAFT for a period from active employees, pricing and unbilled reimbursements.
+ *  Ops copies the lines into Zoho Books, then records the Zoho invoice (number + PDF) over this draft. */
 export async function createMonthlyInvoice(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { userId } = await requireOps();
   const parsed = z.object({ client_id: z.string().uuid(), period: z.string().regex(/^\d{4}-\d{2}$/, "Period must be YYYY-MM") }).safeParse(Object.fromEntries(formData));
@@ -227,7 +228,7 @@ export async function createMonthlyInvoice(_prev: ActionState, formData: FormDat
     sb.from("employees").select("id, full_name, monthly_gross").eq("client_id", client_id).eq("status", "active"),
     getPricing(client_id),
     sb.from("clients").select("payment_terms_days").eq("id", client_id).single(),
-    sb.from("invoices").select("number").like("number", `INV-${y}-%`).order("number", { ascending: false }).limit(1).maybeSingle(),
+    sb.from("invoices").select("number").like("number", `DRAFT-${y}${String(m).padStart(2, "0")}-%`).order("number", { ascending: false }).limit(1).maybeSingle(),
   ]);
   if (!employees || employees.length === 0) return { error: "No active employees to invoice." };
 
@@ -264,10 +265,10 @@ export async function createMonthlyInvoice(_prev: ActionState, formData: FormDat
     subtotal += amt;
   }
 
-  const number = `INV-${y}-${String(lastSeq + 1).padStart(4, "0")}`;
+  const number = `DRAFT-${y}${String(m).padStart(2, "0")}-${String(lastSeq + 1).padStart(3, "0")}`;
   const { data: invoice, error } = await sb
     .from("invoices")
-    .insert({ client_id, number, kind: "monthly", period_start: periodStart.toISOString().slice(0, 10), period_end: periodEnd.toISOString().slice(0, 10), issue_date: toDateInput(issue), due_date: toDateInput(due), subtotal, gst, total: subtotal + gst, status: "sent" })
+    .insert({ client_id, number, kind: "monthly", period_start: periodStart.toISOString().slice(0, 10), period_end: periodEnd.toISOString().slice(0, 10), issue_date: toDateInput(issue), due_date: toDateInput(due), subtotal, gst, total: subtotal + gst, status: "draft" })
     .select("id")
     .single();
   if (error || !invoice) return { error: error?.message ?? "Could not create invoice" };
@@ -275,11 +276,10 @@ export async function createMonthlyInvoice(_prev: ActionState, formData: FormDat
   if (reimbursements && reimbursements.length > 0) {
     await sb.from("approvals").update({ invoice_id: invoice.id }).in("id", reimbursements.map((r) => r.id));
   }
-  await log(client_id, userId, "invoice.sent", `Invoice ${number} issued for ₹${(subtotal + gst).toLocaleString("en-IN")}`, { table: "invoices", id: invoice.id });
-  await notifyClient(client_id, `Invoice ${number} issued: ₹${(subtotal + gst).toLocaleString("en-IN")}`, `Due ${due.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`, "/app/billing");
+  await log(client_id, userId, "invoice.draft", `Draft ${number} prepared for ₹${(subtotal + gst).toLocaleString("en-IN")}`, { table: "invoices", id: invoice.id });
   revalidateClient(client_id);
   revalidatePath("/ops/billing");
-  return { message: `${number} created for ₹${(subtotal + gst).toLocaleString("en-IN")}.` };
+  return { message: `Draft ${number} prepared: subtotal ₹${subtotal.toLocaleString("en-IN")}, GST ₹${gst.toLocaleString("en-IN")}, total ₹${(subtotal + gst).toLocaleString("en-IN")}. Raise it in Zoho Books, then record the Zoho invoice below.` };
 }
 
 export async function setInvoiceStatus(invoiceId: string, clientId: string, status: "sent" | "paid" | "overdue" | "void") {
@@ -638,4 +638,72 @@ export async function markApprovalSynced(id: string) {
   revalidatePath("/ops/approvals");
   revalidatePath("/ops");
   revalidatePath("/app/approvals");
+}
+
+// ---------------------------------------------------------------------------
+// Invoices raised in Zoho Books, recorded here with their PDF
+// ---------------------------------------------------------------------------
+const zohoInvoiceSchema = z.object({
+  client_id: z.string().uuid(),
+  draft_id: z.string().uuid().or(z.literal("")).optional(),
+  number: z.string().trim().min(3, "Enter the Zoho invoice number"),
+  kind: z.enum(["monthly", "one_time", "deposit"]),
+  period: z.string().regex(/^\d{4}-\d{2}$/).or(z.literal("")).optional(),
+  issue_date: z.string().min(1, "Enter the issue date"),
+  due_date: z.string().min(1, "Enter the due date"),
+  subtotal: z.coerce.number().min(0),
+  gst: z.coerce.number().min(0),
+  total: z.coerce.number().min(0.01, "Enter the total"),
+});
+
+export async function recordZohoInvoice(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { userId } = await requireOps();
+  const parsed = zohoInvoiceSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the form" };
+  const d = parsed.data;
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) return { error: "Attach the invoice PDF from Zoho." };
+  if (file.size > 20 * 1024 * 1024) return { error: "PDF must be under 20 MB." };
+  if (Math.abs(d.subtotal + d.gst - d.total) > 1) return { error: "Subtotal + GST does not equal the total." };
+
+  const sb = await createClient();
+  const safeNumber = d.number.replace(/[^\w.\-]+/g, "_");
+  const path = `${d.client_id}/invoices/${safeNumber}-${crypto.randomUUID().slice(0, 8)}.pdf`;
+  const { error: upErr } = await sb.storage.from("documents").upload(path, file, { contentType: "application/pdf" });
+  if (upErr) return { error: `Upload failed: ${upErr.message}` };
+
+  let periodStart: string | null = null;
+  let periodEnd: string | null = null;
+  if (d.kind === "monthly" && d.period) {
+    const [y, m] = d.period.split("-").map(Number);
+    periodStart = toDateInput(new Date(y, m - 1, 1));
+    periodEnd = toDateInput(new Date(y, m, 0));
+  }
+  const row = { number: d.number, kind: d.kind, period_start: periodStart, period_end: periodEnd, issue_date: d.issue_date, due_date: d.due_date, subtotal: d.subtotal, gst: d.gst, total: d.total, status: "sent" as const, pdf_path: path };
+
+  let invoiceId: string;
+  if (d.draft_id) {
+    const { data, error } = await sb.from("invoices").update(row).eq("id", d.draft_id).eq("client_id", d.client_id).eq("status", "draft").select("id").single();
+    if (error || !data) return { error: error?.message ?? "Draft not found" };
+    invoiceId = data.id;
+  } else {
+    const { data, error } = await sb.from("invoices").insert({ ...row, client_id: d.client_id }).select("id").single();
+    if (error || !data) return { error: error?.message?.includes("duplicate") ? "An invoice with this number already exists." : error?.message ?? "Could not save" };
+    invoiceId = data.id;
+  }
+
+  await log(d.client_id, userId, "invoice.sent", `Invoice ${d.number} recorded for ₹${d.total.toLocaleString("en-IN")}`, { table: "invoices", id: invoiceId });
+  await notifyClient(d.client_id, `Invoice ${d.number}: ₹${d.total.toLocaleString("en-IN")}`, `Due ${d.due_date}. PDF available on your billing page.`, "/app/billing");
+  revalidateClient(d.client_id);
+  revalidatePath("/ops/billing");
+  return { message: `${d.number} recorded and shared with the client.` };
+}
+
+export async function getInvoicePdfUrlOps(invoiceId: string): Promise<string | null> {
+  await requireOps();
+  const sb = await createClient();
+  const { data } = await sb.from("invoices").select("pdf_path").eq("id", invoiceId).single();
+  if (!data?.pdf_path) return null;
+  const { data: signed } = await sb.storage.from("documents").createSignedUrl(data.pdf_path, 60 * 10);
+  return signed?.signedUrl ?? null;
 }

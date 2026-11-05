@@ -58,6 +58,10 @@ From `/ops/clients` create the client and enter the admin's email. Supabase send
 3. Set each client's `zoho_contact_id` (the Zoho customer id) in the `clients` table.
 4. `/ops/billing → Sync from Zoho Books` pulls invoices. For push updates, create a Zoho workflow rule on invoices that calls `POST {APP_URL}/api/webhooks/zoho` with header `x-webhook-secret: {ZOHO_WEBHOOK_SECRET}` and a JSON body containing `invoice_id`, `status`, `total`, `due_date`, `last_payment_date`.
 
+## Invoices
+
+Invoices are raised in Zoho Books by hand for now. On a client's ops page, "Prepare draft from payroll" computes the month's lines (salaries, statutory costs, fees, GST, unbilled reimbursements) as a draft the client never sees; ops raises the matching invoice in Zoho, then "Record an invoice raised in Zoho Books" stores the Zoho number, amounts, dates and PDF against the draft (or as a new row). The client sees it on their billing page with a PDF download and gets a notification. Payment status is still set by ops or by the Zoho webhook/sync.
+
 ## Approvals (leave and reimbursements)
 
 Employees raise leave and expense claims in Keka. Keka's public API cannot accept approval decisions from outside, so the loop is: requests are pulled into this app ("Sync from Keka" on `/ops/approvals`, which also links employees to Keka by email; the `leaverequestcreated` webhook at `/api/webhooks/keka` can push them sooner; the manual form is the fallback), the client approves or rejects on `/app/approvals`, an ops task is created to mirror the decision in Keka, and ops marks it synced. If a request was decided inside Keka directly, the next sync records that. Approved reimbursements are added at cost to the client's next monthly invoice; once settled, "Mark paid in Keka" updates the claim's payment status through the one write Keka's API allows.
