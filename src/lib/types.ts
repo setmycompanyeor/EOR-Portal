@@ -253,6 +253,38 @@ export type Approval = {
   created_at: string;
 };
 
+export type LetterKind = "offer_letter" | "employment_contract" | "relieving_letter" | "other";
+export type LetterStatus = "draft" | "generated" | "issued";
+
+export type LetterTemplate = {
+  id: string;
+  client_id: string | null;
+  kind: LetterKind;
+  name: string;
+  storage_path: string;
+  placeholders: string[];
+  active: boolean;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type EmployeeLetter = {
+  id: string;
+  client_id: string;
+  employee_id: string;
+  template_id: string;
+  kind: LetterKind;
+  values: Record<string, string>;
+  salary: unknown | null;
+  status: LetterStatus;
+  generated_path: string | null;
+  document_id: string | null;
+  created_by: string | null;
+  updated_by: string | null;
+  updated_at: string;
+  created_at: string;
+};
+
 export type Activity = {
   id: number;
   client_id: string | null;

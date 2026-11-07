@@ -2,7 +2,7 @@
 
 import { Suspense } from "react";
 import Link from "next/link";
-import { Home, ClipboardList, Users, Calculator, Wallet, Inbox, Truck, Settings, ListChecks, Building2, FileText, Settings2, CheckSquare } from "lucide-react";
+import { Home, ClipboardList, Users, Calculator, Wallet, Inbox, Truck, Settings, ListChecks, Building2, FileText, Settings2, CheckSquare, FileSignature } from "lucide-react";
 import { Sidebar, type NavItem } from "@/components/sidebar";
 import { BRAND_SHORT } from "@/lib/brand";
 
@@ -29,6 +29,7 @@ const opsItems: NavItem[] = [
   { href: "/ops/requests", label: "Quotes & requests", icon: FileText },
   { href: "/ops/approvals", label: "Approvals", icon: CheckSquare },
   { href: "/ops/shipments", label: "Shipments & assets", icon: Truck },
+  { href: "/ops/templates", label: "Letter templates", icon: FileSignature },
   { href: "/ops/pricing", label: "Pricing & rates", icon: Settings2 },
 ];
 

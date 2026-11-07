@@ -21,6 +21,8 @@ export type PricingConfig = {
   pf_wage_cap: number;
   pf_on_full_basic: boolean;
   esi_wage_ceiling: number;
+  hra_metro_percent?: number;
+  hra_nonmetro_percent?: number;
 };
 
 export const DEFAULT_PRICING: PricingConfig = {
@@ -34,6 +36,8 @@ export const DEFAULT_PRICING: PricingConfig = {
   pf_wage_cap: 15000,
   pf_on_full_basic: false,
   esi_wage_ceiling: 21000,
+  hra_metro_percent: 50,
+  hra_nonmetro_percent: 40,
 };
 
 export type EstimateInput = {

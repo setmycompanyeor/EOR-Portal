@@ -83,6 +83,8 @@ export async function getPricing(clientId: string | null): Promise<PricingConfig
     pf_wage_cap: Number(row.pf_wage_cap),
     pf_on_full_basic: Boolean(row.pf_on_full_basic),
     esi_wage_ceiling: Number(row.esi_wage_ceiling),
+    hra_metro_percent: Number(row.hra_metro_percent ?? 50),
+    hra_nonmetro_percent: Number(row.hra_nonmetro_percent ?? 40),
   };
 }
 

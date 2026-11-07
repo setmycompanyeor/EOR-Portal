@@ -10,6 +10,10 @@ import { UploadDocument } from "@/app/app/onboarding/upload-document";
 import { OpenFileButton } from "@/components/action-controls";
 import { getDocumentUrl } from "@/app/app/actions";
 import { CompleteTaskButton } from "./complete-task";
+import { LetterPanel } from "@/components/letter-panel";
+import { getLetter, getTemplatesForClient } from "@/lib/data/letters";
+import { AUTO_PLACEHOLDERS, autoValues, salaryFor } from "@/lib/letters";
+import { getClient } from "@/lib/data/portal";
 
 export const metadata = { title: "Employee" };
 
@@ -35,8 +39,9 @@ const employeeDocKinds = [
 
 async function Content({ id }: { id: string }) {
   const { clientId, profile } = await requireClient();
-  const [{ employee, tasks, documents }, config] = await Promise.all([getEmployee(clientId, id), getPricing(clientId)]);
+  const [{ employee, tasks, documents }, config, client, templates, letter] = await Promise.all([getEmployee(clientId, id), getPricing(clientId), getClient(clientId), getTemplatesForClient(clientId), getLetter(id)]);
   if (!employee) notFound();
+  const salary = salaryFor(employee, config);
   const est = estimate({ monthlyGross: Number(employee.monthly_gross) }, config);
   const done = tasks.filter((t) => t.status === "done").length;
   const canAct = profile.role === "client_admin" || profile.role === "client_approver";
@@ -48,6 +53,22 @@ async function Content({ id }: { id: string }) {
         subtitle={`${employee.job_title} · ${[employee.location_city, employee.location_state].filter(Boolean).join(", ")} · starts ${formatDate(employee.start_date)}`}
         actions={<StatusBadge status={employee.status} />}
       />
+
+      {canAct && !["active", "exited", "withdrawn", "offboarding"].includes(employee.status) && (
+        <Card title="Offer letter details" action={letter && <Badge tone={letter.status === "issued" ? "green" : "amber"}>{letter.status === "issued" ? "Issued" : letter.status === "generated" ? "With SetMyCompany" : "Saved"}</Badge>}>
+          <p className="mb-3 text-[13px] text-ink-muted">Fill in what the letter needs. SetMyCompany reviews, generates and issues it; the issued letter then appears under documents.</p>
+          <LetterPanel
+            employeeId={employee.id}
+            kind="offer_letter"
+            templates={templates.map((t) => ({ id: t.id, name: t.name, placeholders: t.placeholders, scope: t.client_id ? "client" : "global" }))}
+            letter={letter ? { id: letter.id, template_id: letter.template_id, values: letter.values, status: letter.status, updated_at: letter.updated_at } : null}
+            autoValues={autoValues(employee, client)}
+            autoLabels={AUTO_PLACEHOLDERS}
+            salaryRows={salary.rows}
+            mode="client"
+          />
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
         <Card className="lg:col-span-3" title="Onboarding checklist" action={<Badge tone={done === tasks.length ? "green" : "amber"}>{done} of {tasks.length}</Badge>}>

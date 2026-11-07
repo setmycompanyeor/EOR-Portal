@@ -11,6 +11,10 @@ import { documentKindLabel, formatDate, inr, titleCase } from "@/lib/format";
 import { estimate } from "@/lib/pricing";
 import { getOpsDocumentUrl, setEmployeeStatus, setEmployeeTask, uploadEmployeeDocument, verifyDocument } from "../../actions";
 import { UploadDocument } from "@/app/app/onboarding/upload-document";
+import { LetterPanel } from "@/components/letter-panel";
+import { getLetter, getTemplatesForClient } from "@/lib/data/letters";
+import { AUTO_PLACEHOLDERS, autoValues, salaryFor } from "@/lib/letters";
+import { createClient as createSupabase } from "@/lib/supabase/server";
 
 const statuses = ["requested", "estimate_sent", "estimate_approved", "offer_pending", "contract_sent", "active", "offboarding", "exited", "withdrawn"];
 
@@ -32,6 +36,9 @@ async function Content({ id }: { id: string }) {
   if (!employee) notFound();
   const config = await getPricing(employee.client_id);
   const est = estimate({ monthlyGross: Number(employee.monthly_gross) }, config);
+  const sb = await createSupabase();
+  const [templates, letter, { data: clientRow }] = await Promise.all([getTemplatesForClient(employee.client_id), getLetter(employee.id), sb.from("clients").select("*").eq("id", employee.client_id).single()]);
+  const salary = salaryFor(employee, config);
 
   return (
     <>
@@ -54,6 +61,20 @@ async function Content({ id }: { id: string }) {
           />
         }
       />
+
+      <Card title="Offer letter" action={letter && <StatusBadge status={letter.status === "issued" ? "done" : letter.status === "generated" ? "in_progress" : "pending"} label={letter.status === "issued" ? "Issued" : letter.status === "generated" ? "Generated, review" : "Details saved"} />}>
+        <LetterPanel
+          employeeId={employee.id}
+          kind="offer_letter"
+          templates={templates.map((t) => ({ id: t.id, name: t.name, placeholders: t.placeholders, scope: t.client_id ? "client" : "global" }))}
+          letter={letter ? { id: letter.id, template_id: letter.template_id, values: letter.values, status: letter.status, updated_at: letter.updated_at } : null}
+          autoValues={autoValues(employee, clientRow)}
+          autoLabels={AUTO_PLACEHOLDERS}
+          salaryRows={salary.rows}
+          mode="ops"
+          downloadHref={letter ? `/api/letters/${letter.id}` : undefined}
+        />
+      </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
         <Card className="lg:col-span-3" title="Onboarding tasks">
