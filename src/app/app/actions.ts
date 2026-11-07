@@ -284,7 +284,7 @@ export async function inviteUser(_prev: ActionState, formData: FormData): Promis
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.inviteUserByEmail(parsed.data.email, {
     data: { full_name: parsed.data.full_name, client_id: clientId, role: parsed.data.role },
-    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/auth/callback?next=/app`,
+    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/auth/callback?next=/account/password`,
   });
   if (error) return { error: error.message };
   await log(clientId, userId, "user.invited", `Invited ${parsed.data.email} as ${parsed.data.role.replace("client_", "")}`);

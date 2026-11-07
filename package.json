@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "node --env-file=.env.local --import=tsx scripts/seed.ts",
+    "create-login": "node --env-file=.env.local --import=tsx scripts/create-login.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -80,3 +80,15 @@ Email is not wired yet (notifications are in-portal only). Beyond the webhook ab
 - `npm run typecheck` — TypeScript
 - `npm run lint` — ESLint
 - `npm run seed` — demo data (needs the service role key)
+
+## Creating logins
+
+Internal (ops) users and the first admin of a client are created from the terminal, with no email involved:
+
+```bash
+npm run create-login -- --email you@company.com --name "Your Name" --role ops_admin
+```
+
+The script writes a one-time sign-in link to `.local/login-links.txt` (ignored by git). Opening it signs the person in and asks them to set a password at `/account/password`; after that they sign in with email and password, or with an emailed link. Pass `--app-url https://eor-portal.vercel.app` to make a link for the live site instead of localhost, and `--role client_admin --client <uuid>` for a client user. For an existing user the script makes a fresh sign-in link, which doubles as a password reset.
+
+Links are verified by `/auth/confirm` (token hash), which does not depend on the browser that started the flow. Supabase's own invite and magic-link emails still go through `/auth/callback`; to route them through `/auth/confirm` as well, change the email templates in Supabase Auth to link to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite&next=/account/password` (and `type=magiclink` for the magic-link template).

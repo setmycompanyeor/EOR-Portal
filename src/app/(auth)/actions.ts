@@ -46,3 +46,28 @@ export async function signOut() {
   await supabase.auth.signOut();
   redirect("/login");
 }
+
+const passwordSchema = z
+  .object({
+    password: z.string().min(10, "Use at least 10 characters"),
+    confirm: z.string(),
+  })
+  .refine((v) => v.password === v.confirm, { message: "The two passwords do not match", path: ["confirm"] });
+
+/** Sets (or changes) the signed-in user's password, then sends them to their portal. */
+export async function setPassword(_prev: AuthState, formData: FormData): Promise<AuthState> {
+  const parsed = passwordSchema.safeParse({ password: formData.get("password"), confirm: formData.get("confirm") });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check your details" };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login?next=/account/password");
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+  if (error) return { error: error.message };
+
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  const ops = profile?.role === "ops_admin" || profile?.role === "ops_staff";
+  redirect(ops ? "/ops" : "/app");
+}

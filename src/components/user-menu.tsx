@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Avatar } from "@/components/ui";
 import { NotificationsBell, type NotificationItem } from "@/components/notifications";
 import { getSession } from "@/lib/auth";
@@ -25,6 +26,9 @@ export async function UserMenu() {
         <div className="font-medium">{profile.full_name || profile.email}</div>
         <div className="text-ink-muted">{profile.job_title ?? titleCase(profile.role)}</div>
       </div>
+      <Link href="/account/password" className="btn btn-sm">
+        Password
+      </Link>
       <form action={signOut}>
         <button type="submit" className="btn btn-sm">
           Sign out

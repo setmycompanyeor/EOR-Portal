@@ -107,7 +107,7 @@ export async function createClientAccount(_prev: ActionState, formData: FormData
   const admin = createAdminClient();
   const { error: invErr } = await admin.auth.admin.inviteUserByEmail(d.admin_email, {
     data: { full_name: d.admin_name, client_id: client.id, role: "client_admin" },
-    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/auth/callback?next=/app/onboarding`,
+    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/auth/callback?next=/account/password`,
   });
   await log(client.id, userId, "client.created", `Client created${invErr ? " (invite failed: " + invErr.message + ")" : `; invited ${d.admin_email}`}`);
   await sb.from("ops_tasks").insert({ client_id: client.id, type: "onboarding", title: `Verify KYC documents for ${d.name}`, due_date: toDateInput(new Date(Date.now() + 3 * 86400000)), owner_id: userId });
