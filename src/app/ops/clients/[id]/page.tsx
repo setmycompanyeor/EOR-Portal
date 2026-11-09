@@ -11,6 +11,7 @@ import { PricingForm } from "@/app/ops/pricing/pricing-form";
 import { documentKindLabel, formatDate, formatMonth, inr, titleCase, toDateInput } from "@/lib/format";
 import { getInvoicePdfUrlOps, getOpsDocumentUrl, recomputeDepositRequirement, setClientPricing, setClientStatus, setInvoiceStatus, setStepStatus, verifyDocument } from "../../actions";
 import { DepositEntryForm, MonthlyInvoiceForm } from "./forms";
+import { SlideOver } from "@/components/slide-over";
 import { RecordInvoiceForm } from "./record-invoice-form";
 
 export const metadata = { title: "Client" };
@@ -192,18 +193,22 @@ async function Content({ id }: { id: string }) {
           </div>
         </Card>
 
-        <Card title="Invoices">
+        <Card
+          title="Invoices"
+          action={
+            <SlideOver label="+ Record Zoho invoice" title="Record a Zoho invoice" description="Enter the invoice as raised in Zoho Books and attach its PDF. The client is notified." small>
+              <RecordInvoiceForm
+                clientId={c.id}
+                today={today}
+                drafts={d.invoices
+                  .filter((i) => i.status === "draft")
+                  .map((i) => ({ id: i.id, label: `${i.number} · ${i.period_start ? formatMonth(i.period_start) : titleCase(i.kind)} · ₹${Number(i.total).toLocaleString("en-IN")}`, subtotal: Number(i.subtotal), gst: Number(i.gst), total: Number(i.total), period_start: i.period_start, period_end: i.period_end }))}
+              />
+            </SlideOver>
+          }
+        >
           <p className="mb-2 text-[13px] text-ink-muted">Invoices are raised in Zoho Books. Prepare a draft here to get the payroll lines and total, raise it in Zoho, then record the Zoho invoice with its PDF.</p>
           <MonthlyInvoiceForm clientId={c.id} period={period} />
-          <div className="mt-2">
-            <RecordInvoiceForm
-              clientId={c.id}
-              today={today}
-              drafts={d.invoices
-                .filter((i) => i.status === "draft")
-                .map((i) => ({ id: i.id, label: `${i.number} · ${i.period_start ? formatMonth(i.period_start) : titleCase(i.kind)} · ₹${Number(i.total).toLocaleString("en-IN")}`, subtotal: Number(i.subtotal), gst: Number(i.gst), total: Number(i.total), period_start: i.period_start, period_end: i.period_end }))}
-            />
-          </div>
           <div className="mt-3">
             {d.invoices.length === 0 ? (
               <Empty>No invoices yet.</Empty>

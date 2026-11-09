@@ -1,10 +1,12 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useCloseOnSuccess } from "@/components/slide-over";
 import { createApproval, type ActionState } from "../actions";
 
 export function NewApprovalForm({ employees }: { employees: { id: string; name: string }[] }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(createApproval, {});
+  useCloseOnSuccess(state);
   const [kind, setKind] = useState<"leave" | "reimbursement">("reimbursement");
   return (
     <form action={action} className="flex flex-col gap-3">

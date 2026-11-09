@@ -1,51 +1,66 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
+import { SlideOver, useCloseOnSuccess } from "@/components/slide-over";
 import { createTask, type ActionState } from "./actions";
 
-export function NewTaskForm({ clients }: { clients: { id: string; name: string }[] }) {
-  const [open, setOpen] = useState(false);
-  const [state, action, pending] = useActionState<ActionState, FormData>(createTask, {});
-  if (!open) {
-    return (
-      <button type="button" className="btn" onClick={() => setOpen(true)}>
-        + Add task
-      </button>
-    );
-  }
+type ClientOption = { id: string; name: string };
+
+/** The "+ Task" button on the work queue; the form opens in a side panel. */
+export function NewTaskForm({ clients }: { clients: ClientOption[] }) {
   return (
-    <form action={action} className="flex w-full flex-col gap-2 rounded-lg border border-line bg-surface p-3 md:w-[420px]">
-      <input className="input" name="title" placeholder="What needs doing" required />
-      <div className="grid grid-cols-2 gap-2">
-        <select className="input" name="type" defaultValue="other">
-          {["onboarding", "quote", "shipment", "deposit", "invoice", "compliance", "payroll", "offboarding", "other"].map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-        <select className="input" name="client_id" defaultValue="">
-          <option value="">All clients</option>
-          {clients.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        <input className="input" name="due_date" type="date" />
-        <input className="input" name="detail" placeholder="Detail (optional)" />
+    <SlideOver label="+ Task" title="New task" description="Adds an item to the ops work queue.">
+      <TaskFields clients={clients} />
+    </SlideOver>
+  );
+}
+
+function TaskFields({ clients }: { clients: ClientOption[] }) {
+  const [state, action, pending] = useActionState<ActionState, FormData>(createTask, {});
+  useCloseOnSuccess(state);
+  return (
+    <form action={action} className="flex flex-col gap-3">
+      <label className="label">
+        What needs doing
+        <input className="input" name="title" required />
+      </label>
+      <div className="grid grid-cols-2 gap-3">
+        <label className="label">
+          Type
+          <select className="input" name="type" defaultValue="other">
+            {["onboarding", "quote", "shipment", "deposit", "invoice", "compliance", "payroll", "offboarding", "other"].map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="label">
+          Client
+          <select className="input" name="client_id" defaultValue="">
+            <option value="">All clients</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
+      <label className="label">
+        Due date (optional)
+        <input className="input" name="due_date" type="date" />
+      </label>
+      <label className="label">
+        Detail (optional)
+        <textarea className="input min-h-20" name="detail" />
+      </label>
       <p aria-live="polite" className={`min-h-5 text-[13px] ${state.error ? "text-red-ink" : "text-green-ink"}`}>
         {state.error ?? state.message}
       </p>
-      <div className="flex gap-2">
-        <button type="submit" className="btn btn-sm btn-primary" disabled={pending}>
-          {pending ? "Adding…" : "Add"}
-        </button>
-        <button type="button" className="btn btn-sm" onClick={() => setOpen(false)}>
-          Close
-        </button>
-      </div>
+      <button type="submit" className="btn btn-primary" disabled={pending}>
+        {pending ? "Adding…" : "Add task"}
+      </button>
     </form>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useCloseOnSuccess } from "@/components/slide-over";
 import { addShipmentEvent, createShipment, type ActionState } from "../actions";
 
 const stages = ["ordered", "packed", "picked_up", "in_transit", "out_for_delivery", "delivered", "returned", "lost"];
@@ -37,6 +38,7 @@ type Req = { id: string; title: string; client_id: string; employee_id: string |
 
 export function NewShipmentForm({ clients, requests, presetRequest, presetClient }: { clients: { id: string; name: string }[]; requests: Req[]; presetRequest?: string; presetClient?: string }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(createShipment, {});
+  useCloseOnSuccess(state);
   const [reqId, setReqId] = useState(presetRequest ?? "");
   const [clientSel, setClientSel] = useState(presetClient ?? clients[0]?.id ?? "");
   const req = requests.find((r) => r.id === reqId);

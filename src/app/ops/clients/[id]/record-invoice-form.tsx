@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useCloseOnSuccess } from "@/components/slide-over";
 import { recordZohoInvoice, type ActionState } from "../../actions";
 
 export type DraftOption = { id: string; label: string; subtotal: number; gst: number; total: number; period_start: string | null; period_end: string | null };
@@ -8,11 +9,11 @@ export type DraftOption = { id: string; label: string; subtotal: number; gst: nu
 export function RecordInvoiceForm({ clientId, drafts, today }: { clientId: string; drafts: DraftOption[]; today: string }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(recordZohoInvoice, {});
   const [draftId, setDraftId] = useState("");
+  useCloseOnSuccess(state);
   const draft = drafts.find((d) => d.id === draftId);
   return (
-    <form action={action} className="flex flex-col gap-2 rounded-lg bg-canvas p-3">
+    <form action={action} className="flex flex-col gap-3">
       <input type="hidden" name="client_id" value={clientId} />
-      <div className="text-[13px] font-medium">Record an invoice raised in Zoho Books</div>
       {drafts.length > 0 && (
         <label className="label">
           Based on a prepared draft (optional)
@@ -26,7 +27,7 @@ export function RecordInvoiceForm({ clientId, drafts, today }: { clientId: strin
           </select>
         </label>
       )}
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3">
         <label className="label">
           Zoho invoice number
           <input className="input" name="number" placeholder="INV-000123" required />
@@ -63,19 +64,17 @@ export function RecordInvoiceForm({ clientId, drafts, today }: { clientId: strin
           Total (₹)
           <input className="input" name="total" type="number" step="0.01" min={0} key={`t${draftId}`} defaultValue={draft ? draft.total : ""} required />
         </label>
-        <label className="label">
+        <label className="label col-span-2">
           Invoice PDF
           <input className="input py-1.5" name="file" type="file" accept=".pdf" required />
         </label>
       </div>
-      <p aria-live="polite" className={`min-h-4 text-[12px] ${state.error ? "text-red-ink" : "text-green-ink"}`}>
+      <p aria-live="polite" className={`min-h-5 text-[13px] ${state.error ? "text-red-ink" : "text-green-ink"}`}>
         {state.error ?? state.message}
       </p>
-      <div className="flex justify-end">
-        <button type="submit" className="btn btn-primary" disabled={pending}>
-          {pending ? "Saving…" : "Record invoice and notify client"}
-        </button>
-      </div>
+      <button type="submit" className="btn btn-primary" disabled={pending}>
+        {pending ? "Saving…" : "Record invoice and notify client"}
+      </button>
     </form>
   );
 }

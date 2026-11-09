@@ -78,3 +78,16 @@ body {
     @apply border-b border-line-soft px-3 py-3 align-middle text-sm;
   }
 }
+
+/* Side panel (src/components/slide-over.tsx) */
+@keyframes slide-over-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .slide-over[open] {
+    animation: slide-over-in 180ms ease-out;
+  }
+}

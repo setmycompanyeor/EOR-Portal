@@ -1,10 +1,12 @@
 "use client";
 
 import { useActionState } from "react";
+import { useCloseOnSuccess } from "@/components/slide-over";
 import { uploadTemplate, type ActionState } from "@/app/letters/actions";
 
 export function UploadTemplateForm({ clients }: { clients: { id: string; name: string }[] }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(uploadTemplate, {});
+  useCloseOnSuccess(state);
   return (
     <form action={action} className="flex flex-col gap-3">
       <label className="label">

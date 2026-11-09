@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type {
   Approval, Asset, Client, DepositBalance, DepositEntry, Document, Employee, EmployeeTask, Invoice, OnboardingStep, OpsTask, Profile,
@@ -28,7 +29,7 @@ export type ClientSummary = Client & {
   account_manager: { full_name: string } | null;
 };
 
-export async function getClientsOverview() {
+export const getClientsOverview = cache(async () => {
   const sb = await createClient();
   const [{ data: clients }, { data: balances }, { data: employees }, { data: invoices }] = await Promise.all([
     sb.from("clients").select("*, account_manager:account_manager_id(full_name)").order("name"),
@@ -49,7 +50,7 @@ export async function getClientsOverview() {
       nextDue: inv.map((i) => i.due_date as string).sort()[0] ?? null,
     };
   });
-}
+});
 
 export async function getClientDetail(id: string) {
   const sb = await createClient();
@@ -81,11 +82,11 @@ export async function getClientDetail(id: string) {
   };
 }
 
-export async function getAllEmployees() {
+export const getAllEmployees = cache(async () => {
   const sb = await createClient();
   const { data } = await sb.from("employees").select("*, clients(name)").order("created_at", { ascending: false });
   return (data ?? []) as (Employee & { clients: { name: string } | null })[];
-}
+});
 
 export async function getEmployeeForOps(id: string) {
   const sb = await createClient();
@@ -107,11 +108,11 @@ export async function getAllInvoices() {
   return (data ?? []) as (Invoice & { clients: { name: string } | null })[];
 }
 
-export async function getAllRequests() {
+export const getAllRequests = cache(async () => {
   const sb = await createClient();
   const { data } = await sb.from("requests").select("*, clients(name), employees(full_name), quotes(*)").order("created_at", { ascending: false });
   return (data ?? []) as (Request & { clients: { name: string } | null; employees: { full_name: string } | null; quotes: Quote[] })[];
-}
+});
 
 export async function getRequestForOps(id: string) {
   const sb = await createClient();

@@ -7,6 +7,7 @@ import { getClientsOverview } from "@/lib/data/ops";
 import { formatDate, titleCase } from "@/lib/format";
 import { AUTO_PLACEHOLDERS } from "@/lib/letters";
 import { setTemplateActive } from "@/app/letters/actions";
+import { SlideOver, SlideOverPending } from "@/components/slide-over";
 import { UploadTemplateForm } from "./upload-form";
 
 export const metadata = { title: "Letter templates" };
@@ -14,7 +15,15 @@ export const metadata = { title: "Letter templates" };
 export default function TemplatesPage() {
   return (
     <>
-      <PageHeader title="Letter templates" subtitle="Word documents with {{placeholders}}. A client-specific template wins over the standard one." />
+      <PageHeader
+        title="Letter templates"
+        subtitle="Word documents with {{placeholders}}. A client-specific template wins over the standard one."
+        actions={
+          <Suspense fallback={<SlideOverPending label="+ Template" />}>
+            <UploadTemplate />
+          </Suspense>
+        }
+      />
       <Suspense fallback={<Skeleton rows={2} />}>
         <Content />
       </Suspense>
@@ -22,15 +31,27 @@ export default function TemplatesPage() {
   );
 }
 
+/** The "+ Template" button and its form. Only EOR admins can add templates. */
+async function UploadTemplate() {
+  const { profile } = await requireOps();
+  if (profile.role !== "ops_admin") return null;
+  const clients = await getClientsOverview();
+  return (
+    <SlideOver label="+ Template" title="Upload a template" description="A Word .docx file with {{placeholders}}.">
+      <UploadTemplateForm clients={clients.map((c) => ({ id: c.id, name: c.name }))} />
+    </SlideOver>
+  );
+}
+
 async function Content() {
   const { profile } = await requireOps();
-  const [templates, clients] = await Promise.all([getTemplates(), getClientsOverview()]);
+  const templates = await getTemplates();
   const admin = profile.role === "ops_admin";
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       <Card className="lg:col-span-2" title="Templates">
         {templates.length === 0 ? (
-          <Empty>No templates yet.</Empty>
+          <Empty>No templates yet.{admin ? "" : " Only EOR admins can add them."}</Empty>
         ) : (
           <Table head={["Template", "Type", "Scope", "Placeholders", "Added", ""]}>
             {templates.map((t) => (
@@ -58,9 +79,6 @@ async function Content() {
         )}
       </Card>
       <div className="flex flex-col gap-4">
-        <Card title="Upload a template">
-          {admin ? <UploadTemplateForm clients={clients.map((c) => ({ id: c.id, name: c.name }))} /> : <p className="text-sm text-ink-muted">Only EOR admins can add templates.</p>}
-        </Card>
         <Card title="Placeholders you can use">
           <p className="mb-2 text-[13px] text-ink-muted">
             Write them as {"{{name}}"} in Word. These are filled automatically (still editable); any other name becomes a field in the form.{" "}
